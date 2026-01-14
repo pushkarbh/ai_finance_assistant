@@ -3,6 +3,13 @@ Streamlit web application for AI Finance Assistant.
 Provides a multi-tab interface for chat, portfolio analysis, market data, and goal planning.
 """
 
+import sys
+from pathlib import Path
+
+# Add project root to path for imports
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
+
 import streamlit as st
 import pandas as pd
 import plotly.express as px
