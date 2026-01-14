@@ -146,44 +146,190 @@ ai_finance_assistant/
 └── run.py                   # Main entry point
 ```
 
-## Installation
+## Running Locally
 
-### 1. Clone and Setup
+### Prerequisites
+
+Before you begin, ensure you have the following installed:
+
+- **Python 3.11+** (recommended: Python 3.11 or 3.12)
+  - Check version: `python --version` or `python3 --version`
+- **pip** (Python package manager)
+- **Git** (to clone the repository)
+- **OpenAI API Key** - Get one from [OpenAI Platform](https://platform.openai.com/api-keys)
+  - Note: This application uses GPT-4o-mini which requires API credits
+
+### Step 1: Clone the Repository
 
 ```bash
+git clone https://github.com/pushkarbh/ai_finance_assistant.git
 cd ai_finance_assistant
+```
+
+### Step 2: Create Virtual Environment
+
+```bash
+# Create virtual environment
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Activate virtual environment
+# On macOS/Linux:
+source venv/bin/activate
+
+# On Windows:
+venv\Scripts\activate
+```
+
+You should see `(venv)` prefix in your terminal when activated.
+
+### Step 3: Install Dependencies
+
+```bash
 pip install -r requirements.txt
 ```
 
-### 2. Configure Environment
+This installs all required packages including:
+- LangChain & LangGraph (orchestration)
+- OpenAI SDK (LLM integration)
+- FAISS (vector store)
+- Sentence Transformers (embeddings)
+- yFinance (market data)
+- Streamlit (web UI)
+- pytest (testing)
+
+### Step 4: Configure Environment Variables
 
 ```bash
+# Copy the example environment file
 cp .env.example .env
-# Edit .env and add your OpenAI API key:
-# OPENAI_API_KEY=your-actual-api-key
+
+# Open .env in your text editor and add your OpenAI API key
+# Example using nano:
+nano .env
 ```
 
-### 3. Initialize RAG Index
+Your `.env` file should contain:
+```env
+OPENAI_API_KEY=sk-your-actual-openai-api-key-here
+```
+
+**Important:** Never commit your `.env` file to version control. It's already included in `.gitignore`.
+
+### Step 5: Initialize the RAG System
+
+Before running the application, you need to build the FAISS vector index from the knowledge base:
 
 ```bash
 python scripts/init_rag.py
 ```
 
-This creates the FAISS index from the knowledge base documents.
+This script:
+- Loads 20+ financial education documents from `src/data/knowledge_base/`
+- Generates embeddings using sentence-transformers
+- Creates a FAISS index stored in `src/data/faiss_index/`
+- Takes ~30-60 seconds on first run
 
-### 4. Run the Application
+Expected output:
+```
+Processing documents from knowledge base...
+Created 45 chunks from 20 documents
+Generating embeddings...
+FAISS index created successfully with 45 vectors
+Index saved to: src/data/faiss_index/
+```
 
+### Step 6: Run the Application
+
+You have two options to start the application:
+
+**Option A: Using the run script (recommended)**
 ```bash
 python run.py
 ```
 
-Or directly with Streamlit:
-
+**Option B: Direct Streamlit command**
 ```bash
 streamlit run src/web_app/app.py
 ```
+
+### Step 7: Access the Application
+
+Once the application starts, you should see:
+
+```
+You can now view your Streamlit app in your browser.
+
+Local URL: http://localhost:8501
+Network URL: http://192.168.x.x:8501
+```
+
+Open your browser and navigate to `http://localhost:8501`
+
+### Verifying the Setup
+
+Test each component to ensure everything works:
+
+1. **Chat Tab**: Ask "What are stocks?" - should get a detailed answer from the RAG system
+2. **Portfolio Tab**: Upload the sample CSV below or create your own
+3. **Market Tab**: Search for "AAPL" - should show current Apple stock price
+4. **Goals Tab**: Add a test goal to verify calculations work
+
+### Troubleshooting
+
+**Issue: `ModuleNotFoundError`**
+```bash
+# Ensure virtual environment is activated
+source venv/bin/activate  # or venv\Scripts\activate on Windows
+
+# Reinstall dependencies
+pip install -r requirements.txt
+```
+
+**Issue: `OpenAI API Error: Invalid API Key`**
+- Verify your API key is correct in `.env`
+- Check you have credits in your OpenAI account
+- Ensure no extra spaces or quotes in the `.env` file
+
+**Issue: `FAISS index not found`**
+```bash
+# Regenerate the index
+python scripts/init_rag.py
+```
+
+**Issue: Port 8501 already in use**
+```bash
+# Run on a different port
+streamlit run src/web_app/app.py --server.port 8502
+```
+
+**Issue: Market data not loading**
+- yFinance sometimes has rate limits
+- Check your internet connection
+- Wait a few seconds and retry
+
+### Running Tests (Optional)
+
+Verify your setup with the test suite:
+
+```bash
+# Run all tests
+pytest
+
+# Run with verbose output
+pytest -v
+
+# Run specific test category
+pytest tests/unit/
+pytest tests/integration/
+
+# Run with coverage report
+pytest --cov=src --cov-report=html
+```
+
+### Stopping the Application
+
+- Press `Ctrl+C` in the terminal where Streamlit is running
+- Deactivate virtual environment: `deactivate`
 
 ## Usage
 
