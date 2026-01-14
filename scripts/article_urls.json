@@ -1,0 +1,252 @@
+[
+  {
+    "url": "https://www.investopedia.com/terms/s/stock.asp",
+    "category": "investing_basics",
+    "source": "Investopedia"
+  },
+  {
+    "url": "https://www.investopedia.com/terms/b/bond.asp",
+    "category": "fixed_income",
+    "source": "Investopedia"
+  },
+  {
+    "url": "https://www.investopedia.com/terms/e/etf.asp",
+    "category": "investing_basics",
+    "source": "Investopedia"
+  },
+  {
+    "url": "https://www.investopedia.com/terms/m/mutualfund.asp",
+    "category": "investing_basics",
+    "source": "Investopedia"
+  },
+  {
+    "url": "https://www.investopedia.com/terms/i/indexfund.asp",
+    "category": "investing_basics",
+    "source": "Investopedia"
+  },
+  {
+    "url": "https://www.investopedia.com/terms/d/diversification.asp",
+    "category": "portfolio_management",
+    "source": "Investopedia"
+  },
+  {
+    "url": "https://www.investopedia.com/terms/a/assetallocation.asp",
+    "category": "portfolio_management",
+    "source": "Investopedia"
+  },
+  {
+    "url": "https://www.investopedia.com/terms/d/dollarcostaveraging.asp",
+    "category": "investing_strategies",
+    "source": "Investopedia"
+  },
+  {
+    "url": "https://www.investopedia.com/terms/c/compoundinterest.asp",
+    "category": "investing_basics",
+    "source": "Investopedia"
+  },
+  {
+    "url": "https://www.investopedia.com/terms/r/riskmanagement.asp",
+    "category": "risk_management",
+    "source": "Investopedia"
+  },
+  {
+    "url": "https://www.investopedia.com/terms/1/401kplan.asp",
+    "category": "retirement",
+    "source": "Investopedia"
+  },
+  {
+    "url": "https://www.investopedia.com/terms/i/ira.asp",
+    "category": "retirement",
+    "source": "Investopedia"
+  },
+  {
+    "url": "https://www.investopedia.com/terms/r/rothira.asp",
+    "category": "retirement",
+    "source": "Investopedia"
+  },
+  {
+    "url": "https://www.investopedia.com/terms/t/traditionalira.asp",
+    "category": "retirement",
+    "source": "Investopedia"
+  },
+  {
+    "url": "https://www.investopedia.com/terms/r/rsu.asp",
+    "category": "equity_compensation",
+    "source": "Investopedia"
+  },
+  {
+    "url": "https://www.investopedia.com/terms/e/espp.asp",
+    "category": "equity_compensation",
+    "source": "Investopedia"
+  },
+  {
+    "url": "https://www.investopedia.com/terms/s/stockoption.asp",
+    "category": "equity_compensation",
+    "source": "Investopedia"
+  },
+  {
+    "url": "https://www.investopedia.com/terms/c/capital_gains_tax.asp",
+    "category": "taxes",
+    "source": "Investopedia"
+  },
+  {
+    "url": "https://www.investopedia.com/terms/t/taxlossharvesting.asp",
+    "category": "taxes",
+    "source": "Investopedia"
+  },
+  {
+    "url": "https://www.investopedia.com/terms/d/dividend.asp",
+    "category": "investing_basics",
+    "source": "Investopedia"
+  },
+  {
+    "url": "https://www.investopedia.com/terms/q/qualifieddividend.asp",
+    "category": "taxes",
+    "source": "Investopedia"
+  },
+  {
+    "url": "https://www.investopedia.com/terms/p/price-earningsratio.asp",
+    "category": "analysis",
+    "source": "Investopedia"
+  },
+  {
+    "url": "https://www.investopedia.com/terms/m/marketcapitalization.asp",
+    "category": "analysis",
+    "source": "Investopedia"
+  },
+  {
+    "url": "https://www.investopedia.com/terms/e/expenseratio.asp",
+    "category": "investing_basics",
+    "source": "Investopedia"
+  },
+  {
+    "url": "https://www.investopedia.com/terms/b/beta.asp",
+    "category": "risk_management",
+    "source": "Investopedia"
+  },
+  {
+    "url": "https://www.investopedia.com/terms/s/sharperatio.asp",
+    "category": "analysis",
+    "source": "Investopedia"
+  },
+  {
+    "url": "https://www.investopedia.com/terms/b/bullmarket.asp",
+    "category": "market_concepts",
+    "source": "Investopedia"
+  },
+  {
+    "url": "https://www.investopedia.com/terms/b/bearmarket.asp",
+    "category": "market_concepts",
+    "source": "Investopedia"
+  },
+  {
+    "url": "https://www.investopedia.com/terms/i/inflation.asp",
+    "category": "economics",
+    "source": "Investopedia"
+  },
+  {
+    "url": "https://www.investopedia.com/terms/r/recession.asp",
+    "category": "economics",
+    "source": "Investopedia"
+  },
+  {
+    "url": "https://www.investopedia.com/terms/f/federalreservebank.asp",
+    "category": "economics",
+    "source": "Investopedia"
+  },
+  {
+    "url": "https://www.investopedia.com/terms/r/reit.asp",
+    "category": "real_estate",
+    "source": "Investopedia"
+  },
+  {
+    "url": "https://www.investopedia.com/terms/r/realestate.asp",
+    "category": "real_estate",
+    "source": "Investopedia"
+  },
+  {
+    "url": "https://www.nerdwallet.com/article/investing/how-to-start-investing",
+    "category": "investing_basics",
+    "source": "NerdWallet"
+  },
+  {
+    "url": "https://www.nerdwallet.com/article/investing/what-is-a-brokerage-account",
+    "category": "investing_basics",
+    "source": "NerdWallet"
+  },
+  {
+    "url": "https://www.nerdwallet.com/article/investing/roth-ira-vs-traditional-ira",
+    "category": "retirement",
+    "source": "NerdWallet"
+  },
+  {
+    "url": "https://www.nerdwallet.com/article/finance/emergency-fund",
+    "category": "personal_finance",
+    "source": "NerdWallet"
+  },
+  {
+    "url": "https://www.nerdwallet.com/article/finance/how-to-budget",
+    "category": "personal_finance",
+    "source": "NerdWallet"
+  },
+  {
+    "url": "https://www.nerdwallet.com/article/investing/asset-allocation",
+    "category": "portfolio_management",
+    "source": "NerdWallet"
+  },
+  {
+    "url": "https://www.nerdwallet.com/article/investing/index-funds-vs-mutual-funds",
+    "category": "investing_basics",
+    "source": "NerdWallet"
+  },
+  {
+    "url": "https://www.nerdwallet.com/article/investing/what-is-a-stock",
+    "category": "investing_basics",
+    "source": "NerdWallet"
+  },
+  {
+    "url": "https://www.nerdwallet.com/article/investing/what-is-an-etf",
+    "category": "investing_basics",
+    "source": "NerdWallet"
+  },
+  {
+    "url": "https://www.nerdwallet.com/article/investing/retirement-planning",
+    "category": "retirement",
+    "source": "NerdWallet"
+  },
+  {
+    "url": "https://www.bankrate.com/investing/what-is-diversification/",
+    "category": "portfolio_management",
+    "source": "Bankrate"
+  },
+  {
+    "url": "https://www.bankrate.com/investing/what-is-compound-interest/",
+    "category": "investing_basics",
+    "source": "Bankrate"
+  },
+  {
+    "url": "https://www.bankrate.com/retirement/what-is-a-401k/",
+    "category": "retirement",
+    "source": "Bankrate"
+  },
+  {
+    "url": "https://www.bankrate.com/investing/what-are-bonds/",
+    "category": "fixed_income",
+    "source": "Bankrate"
+  },
+  {
+    "url": "https://www.bankrate.com/taxes/capital-gains-tax/",
+    "category": "taxes",
+    "source": "Bankrate"
+  },
+  {
+    "url": "https://www.fidelity.com/learning-center/investment-products/etf/what-are-etfs",
+    "category": "investing_basics",
+    "source": "Fidelity"
+  },
+  {
+    "url": "https://www.fidelity.com/learning-center/investment-products/mutual-funds/what-are-mutual-funds",
+    "category": "investing_basics",
+    "source": "Fidelity"
+  }
+]

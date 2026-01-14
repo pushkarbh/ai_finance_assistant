@@ -1,0 +1,62 @@
+# AI Finance Assistant Configuration
+
+app:
+  name: "AI Finance Assistant"
+  version: "1.0.0"
+  description: "Multi-agent financial education and portfolio analysis system"
+
+llm:
+  provider: "openai"
+  model: "gpt-4o-mini"
+  temperature: 0.7
+  max_tokens: 2000
+
+embeddings:
+  model: "all-MiniLM-L6-v2"
+  dimension: 384
+
+rag:
+  chunk_size: 1000
+  chunk_overlap: 200
+  top_k: 5
+  similarity_threshold: 0.7
+
+market_data:
+  primary_provider: "yfinance"
+  fallback_provider: "alpha_vantage"
+  cache_ttl_minutes: 30
+  default_period: "1mo"
+
+agents:
+  finance_qa:
+    name: "Finance Q&A Agent"
+    description: "Handles general financial education queries using RAG"
+
+  portfolio_analysis:
+    name: "Portfolio Analysis Agent"
+    description: "Analyzes user portfolios and provides metrics"
+
+  market_analysis:
+    name: "Market Analysis Agent"
+    description: "Provides real-time market insights and trends"
+
+  goal_planning:
+    name: "Goal Planning Agent"
+    description: "Assists with financial goal setting and projections"
+
+  news_synthesizer:
+    name: "News Synthesizer Agent"
+    description: "Summarizes and contextualizes financial news"
+
+workflow:
+  max_iterations: 10
+  timeout_seconds: 60
+
+ui:
+  page_title: "AI Finance Assistant"
+  page_icon: "chart_with_upwards_trend"
+  layout: "wide"
+
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
