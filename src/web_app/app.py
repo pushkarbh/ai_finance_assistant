@@ -183,7 +183,23 @@ def render_chat_tab():
         action = st.session_state.pending_tab_action
 
         st.markdown("---")
-        st.info(f"💡 {action['message']}")
+
+        # Styled container for better visibility with accessible blue
+        st.markdown(f"""
+        <div style="background: linear-gradient(135deg, #0066cc 0%, #004c99 100%);
+                    padding: 20px;
+                    border-radius: 10px;
+                    margin: 10px 0;
+                    box-shadow: 0 4px 6px rgba(0,0,0,0.15);">
+            <p style="color: white;
+                      font-size: 17px;
+                      font-weight: 600;
+                      margin: 0;
+                      text-align: center;">
+                💡 {action['message']}
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
 
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
@@ -197,9 +213,11 @@ def render_chat_tab():
                 st.session_state.navigate_to_tab = action['tab_index']
                 st.rerun()
 
-        if st.button("Dismiss", key="dismiss_action"):
-            st.session_state.pending_tab_action = None
-            st.rerun()
+        col_dismiss1, col_dismiss2, col_dismiss3 = st.columns([2, 1, 2])
+        with col_dismiss2:
+            if st.button("✕ Dismiss", key="dismiss_action", use_container_width=True):
+                st.session_state.pending_tab_action = None
+                st.rerun()
 
     # Chat input
     if prompt := st.chat_input("Ask a financial question..."):
@@ -511,13 +529,35 @@ def render_market_tab():
         st.session_state.preload_data = {}
         st.success(f"✨ Loaded {preload_ticker} from your question!")
 
+    # Custom CSS for blue button
+    st.markdown("""
+    <style>
+    div.stButton > button[kind="primary"] {
+        background-color: #0066cc;
+        border-color: #0066cc;
+        color: white;
+    }
+    div.stButton > button[kind="primary"]:hover {
+        background-color: #004c99;
+        border-color: #004c99;
+        color: white;
+    }
+    div.stButton > button[kind="primary"]:active {
+        background-color: #003d7a;
+        border-color: #003d7a;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
     # Ticker input at the top
     col_input1, col_input2, col_input3 = st.columns([2, 1, 3])
     with col_input1:
         default_ticker = st.session_state.get('lookup_ticker', 'AAPL')
         ticker = st.text_input("Enter Ticker Symbol", value=default_ticker)
     with col_input2:
-        if st.button("Look Up", use_container_width=True):
+        # Add spacing to align button with input field
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("🔍 Look Up", type="primary", use_container_width=True):
             st.session_state.lookup_ticker = ticker.upper()
             st.rerun()
 
@@ -613,6 +653,10 @@ def render_market_tab():
                     # Timeframe selector with tabs
                     st.markdown("#### 📉 Historical Price Chart")
 
+                    st.caption("""
+                    📊 **Chart Guide:** Solid line = Daily closing price | Dashed orange line = 20-day trend (moving average to smooth out daily fluctuations)
+                    """)
+
                     timeframe_tab1, timeframe_tab2, timeframe_tab3, timeframe_tab4, timeframe_tab5 = st.tabs([
                         "📅 1 Month", "📅 6 Months", "📅 YTD", "📅 1 Year", "📅 5 Years"
                     ])
@@ -644,7 +688,7 @@ def render_market_tab():
                                 fill='tozeroy',
                                 fillcolor=fill_color,
                                 line=dict(color=line_color, width=3),
-                                name='Price',
+                                name='Stock Price',
                                 hovertemplate='<b>Date:</b> %{x|%Y-%m-%d}<br><b>Price:</b> $%{y:.2f}<extra></extra>'
                             ))
 
@@ -655,8 +699,8 @@ def render_market_tab():
                                     x=hist.index,
                                     y=ma20,
                                     line=dict(color='rgba(255, 165, 0, 0.8)', width=2, dash='dash'),
-                                    name='20-Day MA',
-                                    hovertemplate='<b>20-Day MA:</b> $%{y:.2f}<extra></extra>'
+                                    name='20-Day Trend (Moving Average)',
+                                    hovertemplate='<b>20-Day Trend:</b> $%{y:.2f}<extra></extra>'
                                 ))
 
                             # Update layout for better visuals
