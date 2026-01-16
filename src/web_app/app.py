@@ -25,7 +25,8 @@ from src.utils.market_data import (
     get_stock_price,
     get_stock_info,
     get_historical_data,
-    calculate_returns
+    calculate_returns,
+    get_stock_news
 )
 from src.agents import PortfolioAnalysisAgent
 
@@ -67,6 +68,53 @@ def init_session_state():
 def main():
     """Main application entry point."""
     init_session_state()
+
+    # Global CSS for blue buttons - load this FIRST before any buttons render
+    st.markdown("""
+    <style>
+    /* Nuclear option - override ALL primary button styles */
+    button[kind="primary"],
+    button[kind="primary"][data-testid="stFormSubmitButton"],
+    button[kind="primary"][data-testid="baseButton-primary"],
+    button.stButton,
+    .stButton > button[kind="primary"],
+    div[data-testid="stForm"] button,
+    div[data-testid="stForm"] button[kind="primary"],
+    form button[kind="primary"] {
+        background: #0066cc !important;
+        background-color: #0066cc !important;
+        background-image: none !important;
+        border: 1px solid #0066cc !important;
+        color: white !important;
+    }
+    button[kind="primary"]:hover,
+    button[kind="primary"][data-testid="stFormSubmitButton"]:hover,
+    button[kind="primary"][data-testid="baseButton-primary"]:hover,
+    .stButton > button[kind="primary"]:hover,
+    div[data-testid="stForm"] button:hover,
+    div[data-testid="stForm"] button[kind="primary"]:hover,
+    form button[kind="primary"]:hover {
+        background: #004c99 !important;
+        background-color: #004c99 !important;
+        background-image: none !important;
+        border: 1px solid #004c99 !important;
+        color: white !important;
+    }
+    button[kind="primary"]:active,
+    button[kind="primary"][data-testid="stFormSubmitButton"]:active,
+    button[kind="primary"][data-testid="baseButton-primary"]:active,
+    .stButton > button[kind="primary"]:active,
+    div[data-testid="stForm"] button:active,
+    div[data-testid="stForm"] button[kind="primary"]:active,
+    form button[kind="primary"]:active {
+        background: #003d7a !important;
+        background-color: #003d7a !important;
+        background-image: none !important;
+        border: 1px solid #003d7a !important;
+        transform: scale(0.98);
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
     # Sidebar
     with st.sidebar:
@@ -529,35 +577,18 @@ def render_market_tab():
         st.session_state.preload_data = {}
         st.success(f"✨ Loaded {preload_ticker} from your question!")
 
-    # Custom CSS for blue button
-    st.markdown("""
-    <style>
-    div.stButton > button[kind="primary"] {
-        background-color: #0066cc;
-        border-color: #0066cc;
-        color: white;
-    }
-    div.stButton > button[kind="primary"]:hover {
-        background-color: #004c99;
-        border-color: #004c99;
-        color: white;
-    }
-    div.stButton > button[kind="primary"]:active {
-        background-color: #003d7a;
-        border-color: #003d7a;
-    }
-    </style>
-    """, unsafe_allow_html=True)
+    # Ticker input using form (makes Enter key work)
+    with st.form(key="ticker_lookup_form", clear_on_submit=False):
+        col_input1, col_input2, col_input3 = st.columns([2, 1, 3])
+        with col_input1:
+            default_ticker = st.session_state.get('lookup_ticker', 'AAPL')
+            ticker = st.text_input("Enter Ticker Symbol", value=default_ticker)
+        with col_input2:
+            # Add spacing to align button with input field
+            st.markdown("<br>", unsafe_allow_html=True)
+            submitted = st.form_submit_button("🔍 Look Up", type="primary", use_container_width=True)
 
-    # Ticker input at the top
-    col_input1, col_input2, col_input3 = st.columns([2, 1, 3])
-    with col_input1:
-        default_ticker = st.session_state.get('lookup_ticker', 'AAPL')
-        ticker = st.text_input("Enter Ticker Symbol", value=default_ticker)
-    with col_input2:
-        # Add spacing to align button with input field
-        st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("🔍 Look Up", type="primary", use_container_width=True):
+        if submitted and ticker:
             st.session_state.lookup_ticker = ticker.upper()
             st.rerun()
 
@@ -646,6 +677,37 @@ def render_market_tab():
                         else:
                             st.error("**Underperforming** this year ⚠️")
 
+                    st.markdown("---")
+
+                    # Top 5 News
+                    st.markdown("#### 📰 **Latest News**")
+
+                    try:
+                        news_items = get_stock_news(lookup_ticker, num_news=5)
+
+                        if news_items and len(news_items) > 0:
+                            for i, news in enumerate(news_items, 1):
+                                title = news.get('title', 'No title')
+                                link = news.get('link', '')
+                                publisher = news.get('publisher', 'Unknown')
+
+                                # Skip if no valid link or title
+                                if not title or title == 'No title':
+                                    continue
+
+                                # Use st.markdown with link instead of HTML
+                                with st.container():
+                                    if link:
+                                        st.markdown(f"**{i}.** [{title}]({link})")
+                                    else:
+                                        st.markdown(f"**{i}.** {title}")
+                                    st.caption(f"📰 {publisher}")
+                                    st.markdown("")  # Spacing
+                        else:
+                            st.info("No recent news available for this stock")
+                    except Exception as e:
+                        st.warning(f"Could not load news: {str(e)}")
+
                 with col_right:
                     # Display company name
                     st.markdown(f"### {info.get('name', lookup_ticker)} ({lookup_ticker})")
@@ -653,9 +715,26 @@ def render_market_tab():
                     # Timeframe selector with tabs
                     st.markdown("#### 📉 Historical Price Chart")
 
-                    st.caption("""
-                    📊 **Chart Guide:** Solid line = Daily closing price | Dashed orange line = 20-day trend (moving average to smooth out daily fluctuations)
-                    """)
+                    # Bordered legend description box
+                    st.markdown("""
+                    <div style="border: 2px solid #000000;
+                                border-radius: 8px;
+                                padding: 15px;
+                                background-color: #f8f9fa;
+                                margin-bottom: 15px;">
+                        <p style="margin: 0; font-size: 15px; font-weight: 600; color: #000000;">
+                            📊 Chart Legend
+                        </p>
+                        <p style="margin: 8px 0 0 0; font-size: 14px; color: #333333;">
+                            <span style="display: inline-block; width: 30px; height: 3px; background-color: #00CC66; vertical-align: middle; margin-right: 8px;"></span>
+                            <strong>Solid Line:</strong> Daily closing stock price
+                        </p>
+                        <p style="margin: 8px 0 0 0; font-size: 14px; color: #333333;">
+                            <span style="display: inline-block; width: 30px; height: 2px; border-top: 2px dashed #FFA500; vertical-align: middle; margin-right: 8px;"></span>
+                            <strong>Dashed Line:</strong> 20-day moving average (smooths out daily fluctuations to show trend)
+                        </p>
+                    </div>
+                    """, unsafe_allow_html=True)
 
                     timeframe_tab1, timeframe_tab2, timeframe_tab3, timeframe_tab4, timeframe_tab5 = st.tabs([
                         "📅 1 Month", "📅 6 Months", "📅 YTD", "📅 1 Year", "📅 5 Years"
