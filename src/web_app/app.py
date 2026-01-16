@@ -58,6 +58,10 @@ def init_session_state():
         st.session_state.preload_data = {}
     if 'lookup_ticker' not in st.session_state:
         st.session_state.lookup_ticker = None
+    if 'pending_tab_action' not in st.session_state:
+        st.session_state.pending_tab_action = None
+    if 'navigate_to_tab' not in st.session_state:
+        st.session_state.navigate_to_tab = None
 
 
 def main():
@@ -107,24 +111,37 @@ def main():
         # Force rerun to update tab selection
         st.rerun()
 
+    # Check if user clicked the navigation button in chat
+    # We do this BEFORE rendering tabs so navigation works
+    if st.session_state.get('navigate_to_tab') is not None:
+        st.session_state.active_tab = st.session_state.navigate_to_tab
+        st.session_state.tab_selector = st.session_state.navigate_to_tab  # Also update the widget key
+        st.session_state.navigate_to_tab = None
+        st.session_state.pending_tab_action = None  # Clear the action
+
+    # Initialize tab_selector if it doesn't exist
+    if 'tab_selector' not in st.session_state:
+        st.session_state.tab_selector = st.session_state.active_tab
+
     # Custom tab selector for programmatic switching
     tab_names = ["💬 Chat", "📊 Portfolio", "📈 Market", "🎯 Goals"]
-    
-    # Use radio buttons styled as tabs (hidden label)
-    selected_tab = st.radio(
-        "Select Tab",
+
+    # Use pills (segmented control style) - more reliable than radio for programmatic switching
+    def on_tab_change():
+        """Callback when tab is manually changed."""
+        st.session_state.active_tab = st.session_state.tab_selector
+        st.session_state.pending_tab_action = None  # Clear pending action
+
+    # Use radio with callback - the key links to session state
+    st.radio(
+        "Navigate:",
         options=range(len(tab_names)),
         format_func=lambda x: tab_names[x],
-        index=st.session_state.active_tab,
         horizontal=True,
         label_visibility="collapsed",
-        key="tab_selector"
+        key="tab_selector",
+        on_change=on_tab_change
     )
-    
-    # Update active tab when user manually switches
-    if selected_tab != st.session_state.active_tab:
-        st.session_state.active_tab = selected_tab
-        st.rerun()
 
     # Render the selected tab
     st.markdown("---")
@@ -143,23 +160,46 @@ def render_chat_tab():
     """Render the chat interface tab."""
     st.header("💬 Financial Education Chat")
     st.markdown("Ask me anything about investing, financial planning, or your portfolio!")
-    
+
     # Info about smart tab switching
     with st.expander("ℹ️ Smart Tab Switching"):
         st.markdown("""
-        **Ask questions and I'll automatically take you to the relevant tab!**
-        
-        - 📈 **Market questions** (e.g., "How is Apple stock doing?") → Switches to Market tab
-        - 📊 **Portfolio questions** → Switches to Portfolio tab  
-        - 🎯 **Goal planning questions** → Switches to Goals tab
-        
+        **Ask questions and I'll help you navigate to relevant details!**
+
+        - 📈 **Market questions** (e.g., "How is Apple stock doing?") → Shows link to Market tab
+        - 📊 **Portfolio questions** → Shows link to Portfolio tab
+        - 🎯 **Goal planning questions** → Shows link to Goals tab
+
         The relevant tab will be pre-loaded with the information you asked about!
         """)
 
-    # Display chat history
+    # Display chat history (no interactive buttons here)
     for message in st.session_state.chat_history:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
+
+    # Show pending action button AFTER chat history (so it appears below messages)
+    if st.session_state.get('pending_tab_action'):
+        action = st.session_state.pending_tab_action
+
+        st.markdown("---")
+        st.info(f"💡 {action['message']}")
+
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            if st.button(
+                f"{action['icon']} {action['button_text']} →",
+                key="persistent_nav_button",
+                type="primary",
+                use_container_width=True
+            ):
+                # Set navigate_to_tab which will be checked at main level
+                st.session_state.navigate_to_tab = action['tab_index']
+                st.rerun()
+
+        if st.button("Dismiss", key="dismiss_action"):
+            st.session_state.pending_tab_action = None
+            st.rerun()
 
     # Chat input
     if prompt := st.chat_input("Ask a financial question..."):
@@ -180,6 +220,9 @@ def render_chat_tab():
                     )
                     response = result.get("response", "I couldn't generate a response. Please try again.")
 
+                    # Add assistant response to history FIRST (before triggering rerun)
+                    st.session_state.chat_history.append({"role": "assistant", "content": response})
+
                     # Display response
                     st.markdown(response)
 
@@ -187,9 +230,6 @@ def render_chat_tab():
                     agents_used = result.get("agents_used", [])
                     if agents_used:
                         st.caption(f"Agents used: {', '.join(agents_used)}")
-
-                        # Handle automatic tab switching and data pre-loading
-                        handle_agent_tab_switching(agents_used, prompt, result)
 
                     # Show sources in an expander (for RAG citations)
                     sources = result.get("sources", [])
@@ -209,12 +249,14 @@ def render_chat_tab():
                                 else:
                                     st.markdown(f"- {source}")
 
+                    # Show clickable link to relevant tab - this will trigger rerun
+                    if agents_used:
+                        show_tab_navigation_link(agents_used, prompt, result)
+
                 except Exception as e:
                     response = f"I encountered an error: {str(e)}. Please try again."
                     st.error(response)
-
-        # Add assistant response to history
-        st.session_state.chat_history.append({"role": "assistant", "content": response})
+                    st.session_state.chat_history.append({"role": "assistant", "content": response})
 
     # Example questions
     with st.expander("💡 Example Questions"):
@@ -313,27 +355,56 @@ def render_portfolio_tab():
 def display_portfolio_analysis(analysis: dict):
     """Display portfolio analysis results."""
     st.markdown("---")
-    st.subheader("Portfolio Analysis Results")
+    st.subheader("📊 Portfolio Analysis Results")
 
-    # Summary metrics
+    # Add introduction
+    st.markdown("""
+    Here's a comprehensive breakdown of your portfolio's performance, diversification, and composition.
+    Use these insights to understand your investment allocation and identify areas for optimization.
+    """)
+
+    # Summary metrics with explanations
+    st.markdown("### 💰 Portfolio Summary")
     col1, col2, col3, col4 = st.columns(4)
     with col1:
         st.metric("Total Value", f"${analysis['total_value']:,.2f}")
+        st.caption("Current market value of all holdings")
     with col2:
-        st.metric("Total Gain/Loss",
-                  f"${analysis['total_gain_loss']:,.2f}",
-                  f"{analysis['total_gain_loss_pct']:.1f}%")
+        gain_loss = analysis['total_gain_loss']
+        gain_loss_pct = analysis['total_gain_loss_pct']
+        st.metric("Total Gain/Loss", f"${gain_loss:,.2f}", f"{gain_loss_pct:.1f}%")
+        st.caption("Profit or loss since purchase")
     with col3:
         st.metric("Holdings", analysis['num_holdings'])
+        st.caption("Number of different positions")
     with col4:
         div_score = analysis['diversification_score']
         st.metric("Diversification", div_score['rating'], f"{div_score['score']}/100")
+        st.caption("How well your portfolio is spread across sectors")
 
-    # Charts
+    # Interpretation of overall performance
+    if analysis['total_gain_loss_pct'] > 15:
+        st.success("🎉 **Strong Performance!** Your portfolio has delivered excellent returns.")
+    elif analysis['total_gain_loss_pct'] > 5:
+        st.info("📈 **Solid Returns:** Your portfolio is performing well.")
+    elif analysis['total_gain_loss_pct'] > 0:
+        st.info("➡️ **Positive Territory:** Your portfolio is up, though modestly.")
+    elif analysis['total_gain_loss_pct'] > -5:
+        st.warning("📉 **Slight Loss:** Your portfolio is down slightly.")
+    else:
+        st.error("⚠️ **Significant Loss:** Consider reviewing your holdings.")
+
+    # Charts with explanations
+    st.markdown("### 📊 Visual Breakdown")
+
     col1, col2 = st.columns(2)
 
     with col1:
-        st.subheader("Sector Allocation")
+        st.markdown("#### 🥧 Sector Allocation")
+        st.markdown("""
+        This pie chart shows what percentage of your portfolio is invested in each sector.
+        **Ideal:** A well-diversified portfolio typically has no more than 25-30% in any single sector.
+        """)
         sector_data = analysis.get('sector_allocation', {})
         if sector_data:
             fig = px.pie(
@@ -343,8 +414,19 @@ def display_portfolio_analysis(analysis: dict):
             )
             st.plotly_chart(fig, use_container_width=True)
 
+            # Add concentration warning
+            max_sector = max(sector_data.values())
+            if max_sector > 40:
+                st.warning(f"⚠️ **High Concentration:** {max(sector_data, key=sector_data.get)} represents {max_sector:.1f}% of your portfolio. Consider diversifying.")
+            elif max_sector > 30:
+                st.info(f"ℹ️ {max(sector_data, key=sector_data.get)} is your largest sector at {max_sector:.1f}%.")
+
     with col2:
-        st.subheader("Holdings Breakdown")
+        st.markdown("#### 📊 Holdings by Value")
+        st.markdown("""
+        This bar chart shows the current value of each position, color-coded by performance:
+        **Green** = gains, **Red** = losses.
+        """)
         holdings = analysis.get('holdings', [])
         if holdings:
             holdings_df = pd.DataFrame(holdings)
@@ -354,12 +436,18 @@ def display_portfolio_analysis(analysis: dict):
                 y='current_value',
                 title="Value by Holding",
                 color='gain_loss_pct',
-                color_continuous_scale='RdYlGn'
+                color_continuous_scale='RdYlGn',
+                labels={'current_value': 'Current Value ($)', 'ticker': 'Ticker'}
             )
             st.plotly_chart(fig, use_container_width=True)
 
-    # Holdings table
-    st.subheader("Holdings Detail")
+    # Holdings table with explanation
+    st.markdown("### 📋 Detailed Holdings")
+    st.markdown("""
+    This table shows all your individual positions with current prices, values, and performance.
+    Use this to identify your best and worst performers.
+    """)
+
     if holdings:
         display_df = pd.DataFrame(holdings)[
             ['ticker', 'company_name', 'shares', 'current_price', 'current_value', 'gain_loss', 'gain_loss_pct', 'sector']
@@ -375,6 +463,16 @@ def display_portfolio_analysis(analysis: dict):
             'sector': 'Sector'
         })
         st.dataframe(display_df, use_container_width=True)
+
+        # Add insights about best/worst performers
+        best_performer = holdings_df.loc[holdings_df['gain_loss_pct'].idxmax()]
+        worst_performer = holdings_df.loc[holdings_df['gain_loss_pct'].idxmin()]
+
+        col1, col2 = st.columns(2)
+        with col1:
+            st.success(f"🏆 **Best Performer:** {best_performer['ticker']} (+{best_performer['gain_loss_pct']:.1f}%)")
+        with col2:
+            st.error(f"📉 **Worst Performer:** {worst_performer['ticker']} ({worst_performer['gain_loss_pct']:.1f}%)")
 
 
 def render_market_tab():
@@ -404,7 +502,7 @@ def render_market_tab():
 
     # Stock lookup
     st.subheader("Stock Lookup")
-    
+
     # Check if we have pre-loaded ticker data from chat
     preload_ticker = st.session_state.preload_data.get('ticker')
     if preload_ticker and preload_ticker != st.session_state.get('lookup_ticker'):
@@ -412,7 +510,7 @@ def render_market_tab():
         # Clear preload data after using it
         st.session_state.preload_data = {}
         st.success(f"✨ Loaded {preload_ticker} from your question!")
-    
+
     col1, col2 = st.columns([1, 2])
 
     with col1:
@@ -434,28 +532,73 @@ def render_market_tab():
                     # Display info
                     st.subheader(f"{info.get('name', lookup_ticker)} ({lookup_ticker})")
 
+                    # Add context about what we're showing
+                    st.markdown("""
+                    Below you'll find key metrics and performance data for this stock.
+                    Use this information to understand the company's current valuation and recent performance.
+                    """)
+
+                    # Price metrics
+                    st.markdown("### 📊 Current Valuation")
                     col1, col2, col3 = st.columns(3)
                     with col1:
-                        st.metric("Price", f"${price_data.get('price', 0):.2f}",
-                                  f"{price_data.get('change_pct', 0):.2f}%")
+                        current_price = price_data.get('price', 0)
+                        change_pct = price_data.get('change_pct', 0)
+                        st.metric("Current Price", f"${current_price:.2f}", f"{change_pct:.2f}%")
+                        st.caption("Today's price and % change")
                     with col2:
-                        st.metric("P/E Ratio", f"{info.get('pe_ratio', 'N/A')}")
+                        pe_ratio = info.get('pe_ratio', 'N/A')
+                        st.metric("P/E Ratio", f"{pe_ratio}")
+                        st.caption("Price-to-Earnings ratio - lower may indicate value")
                     with col3:
                         div_yield = info.get('dividend_yield', 0) or 0
                         st.metric("Dividend Yield", f"{div_yield * 100:.2f}%")
+                        st.caption("Annual dividend as % of price")
 
-                    # Returns
-                    st.markdown("**Returns:**")
+                    # Returns section with explanation
+                    st.markdown("### 📈 Historical Performance")
+                    st.markdown("""
+                    These returns show how much the stock has gained or lost over different time periods.
+                    Positive numbers indicate gains, negative numbers indicate losses.
+                    """)
+
                     return_cols = st.columns(4)
                     for i, (period, ret) in enumerate(returns.items()):
                         with return_cols[i]:
-                            st.metric(period, f"{ret}%" if ret else "N/A")
+                            delta_val = f"{ret}%" if ret else "N/A"
+                            st.metric(period, delta_val)
 
-                    # Chart
+                    # Chart with explanation
+                    st.markdown("### 📉 Price Chart (6 Months)")
+                    st.markdown("""
+                    This chart shows the stock's closing price over the last 6 months.
+                    Look for trends: is the price generally rising (uptrend), falling (downtrend), or staying flat?
+                    """)
+
                     hist = get_historical_data(lookup_ticker, period="6mo")
                     if not hist.empty:
-                        fig = px.line(hist, y='Close', title=f"{lookup_ticker} - 6 Month Chart")
+                        fig = px.line(
+                            hist,
+                            y='Close',
+                            title=f"{lookup_ticker} - 6 Month Price History",
+                            labels={'Close': 'Price ($)', 'Date': 'Date'}
+                        )
+                        fig.update_traces(line_color='#1f77b4', line_width=2)
                         st.plotly_chart(fig, use_container_width=True)
+
+                        # Add simple trend analysis
+                        first_price = hist['Close'].iloc[0]
+                        last_price = hist['Close'].iloc[-1]
+                        pct_change = ((last_price - first_price) / first_price) * 100
+
+                        if pct_change > 10:
+                            st.success(f"✅ **Strong uptrend**: {lookup_ticker} is up {pct_change:.1f}% over 6 months")
+                        elif pct_change > 0:
+                            st.info(f"📈 **Modest gains**: {lookup_ticker} is up {pct_change:.1f}% over 6 months")
+                        elif pct_change > -10:
+                            st.warning(f"📉 **Slight decline**: {lookup_ticker} is down {abs(pct_change):.1f}% over 6 months")
+                        else:
+                            st.error(f"⚠️ **Significant decline**: {lookup_ticker} is down {abs(pct_change):.1f}% over 6 months")
 
                 except Exception as e:
                     st.error(f"Error: {str(e)}")
@@ -527,9 +670,14 @@ def render_goals_tab():
         calculate = st.button("Calculate Projection", type="primary")
 
     with col2:
-        st.subheader("Projection Results")
+        st.subheader("📊 Projection Results")
 
         if calculate:
+            st.markdown("""
+            Based on your inputs, here's a realistic projection of how your savings will grow.
+            This assumes consistent monthly contributions and average market returns.
+            """)
+
             # Parse risk level
             if "Conservative" in risk_level:
                 rate = 0.04
@@ -554,32 +702,65 @@ def render_goals_tab():
             total_contributions = current_savings + (monthly_contribution * months)
             investment_growth = projected_total - total_contributions
 
-            # Display results
+            # Display results with context
             st.metric("Projected Total", f"${projected_total:,.0f}")
+            st.caption(f"Your estimated savings after {years} years at {rate*100:.0f}% annual return")
 
+            # Goal assessment with actionable feedback
             if projected_total >= target_amount:
                 surplus = projected_total - target_amount
-                st.success(f"🎉 You'll exceed your goal by ${surplus:,.0f}!")
+                st.success(f"🎉 **Excellent!** You'll exceed your ${target_amount:,.0f} goal by ${surplus:,.0f}")
+                st.markdown(f"""
+                **What this means:**
+                - You're on track to reach your goal comfortably
+                - You have a ${surplus:,.0f} cushion for unexpected expenses
+                - Consider increasing your goal or reducing contributions
+                """)
             else:
                 shortfall = target_amount - projected_total
-                st.warning(f"⚠️ You'll be ${shortfall:,.0f} short of your goal.")
+                shortfall_pct = (shortfall / target_amount) * 100
+                st.warning(f"⚠️ **Shortfall Alert:** You'll be ${shortfall:,.0f} short ({shortfall_pct:.1f}% of goal)")
 
+                st.markdown("**How to close the gap:**")
                 # Calculate required monthly
                 remaining = target_amount - fv_current
                 if monthly_rate > 0:
                     required_monthly = remaining * monthly_rate / (((1 + monthly_rate) ** months - 1))
-                    st.info(f"💡 To reach your goal, contribute ${required_monthly:,.0f}/month")
+                    increase_needed = required_monthly - monthly_contribution
+                    st.info(f"💡 **Option 1:** Increase monthly contribution to ${required_monthly:,.0f} (+${increase_needed:,.0f}/month)")
 
-            # Breakdown
-            st.markdown("**Breakdown:**")
+                # Option 2: Extend timeline
+                st.info(f"💡 **Option 2:** Extend your timeline by {int(shortfall_pct/10)} more years")
+
+                # Option 3: Higher returns
+                st.info(f"💡 **Option 3:** Seek higher-return investments (consider more risk)")
+
+            # Breakdown with explanation
+            st.markdown("### 💸 Where Your Money Goes")
+            st.markdown("This shows how much you'll contribute vs. how much comes from investment growth:")
+
             col1, col2 = st.columns(2)
             with col1:
-                st.metric("Total Contributions", f"${total_contributions:,.0f}")
+                st.metric("Your Contributions", f"${total_contributions:,.0f}")
+                st.caption("Money you'll save over time")
             with col2:
                 st.metric("Investment Growth", f"${investment_growth:,.0f}")
+                st.caption("Earnings from compound interest")
 
-            # Projection chart
-            st.subheader("Growth Over Time")
+            growth_pct = (investment_growth / projected_total) * 100 if projected_total > 0 else 0
+            if growth_pct > 40:
+                st.success(f"🚀 **Power of Compounding:** {growth_pct:.0f}% of your final total comes from investment growth!")
+            else:
+                st.info(f"📈 Investment growth will contribute {growth_pct:.0f}% of your total.")
+
+            # Projection chart with explanation
+            st.markdown("### 📈 Visual Projection")
+            st.markdown("""
+            This chart shows how your savings will grow year by year. The blue line represents
+            your projected balance, while the red dashed line shows your target.
+            **Look for:** Where the blue line crosses the red line (that's when you reach your goal!)
+            """)
+
             years_list = list(range(years + 1))
             values = []
             for y in years_list:
@@ -592,118 +773,169 @@ def render_goals_tab():
                 values.append(fv)
 
             fig = go.Figure()
-            fig.add_trace(go.Scatter(x=years_list, y=values, mode='lines', name='Projected Value'))
-            fig.add_hline(y=target_amount, line_dash="dash", line_color="red",
-                          annotation_text="Target")
+            fig.add_trace(go.Scatter(
+                x=years_list,
+                y=values,
+                mode='lines+markers',
+                name='Projected Savings',
+                line=dict(color='#1f77b4', width=3)
+            ))
+            fig.add_hline(
+                y=target_amount,
+                line_dash="dash",
+                line_color="red",
+                line_width=2,
+                annotation_text="🎯 Target Goal",
+                annotation_position="right"
+            )
             fig.update_layout(
-                title="Projected Growth",
-                xaxis_title="Years",
-                yaxis_title="Value ($)",
-                yaxis_tickformat='$,.0f'
+                title=f"Savings Growth Projection ({years} Years)",
+                xaxis_title="Years from Now",
+                yaxis_title="Total Savings ($)",
+                yaxis_tickformat='$,.0f',
+                hovermode='x unified'
             )
             st.plotly_chart(fig, use_container_width=True)
 
+            # Add milestone info
+            milestone_year = None
+            for i, val in enumerate(values):
+                if val >= target_amount:
+                    milestone_year = i
+                    break
 
-def handle_agent_tab_switching(agents_used: List[str], query: str, result: dict):
+            if milestone_year:
+                st.success(f"🎯 **Milestone:** You'll reach your goal in approximately **{milestone_year} years**!")
+            else:
+                st.warning(f"⏰ You won't quite reach your goal in {years} years. Adjust your inputs above to see how to get there.")
+
+
+def show_tab_navigation_link(agents_used: List[str], query: str, result: dict):
     """
-    Handle automatic tab switching based on which agent answered.
-    Also extracts and pre-loads relevant data for the target tab.
-    
+    Store a pending tab navigation action in session state.
+    The button will be shown OUTSIDE the chat history to persist across reruns.
+
     Args:
         agents_used: List of agent names that processed the query
         query: The original user query
         result: The complete result from process_query
     """
-    # Mapping of agents to tab indices
-    AGENT_TO_TAB = {
-        'market_analysis': 2,      # Market tab
-        'portfolio_analysis': 1,   # Portfolio tab
-        'goal_planning': 3,        # Goals tab
-        'news_synthesizer': 2,     # Market tab (news relates to market)
-        'finance_qa': 0,           # Stay in chat tab
+    # Mapping of agents to tab indices and descriptions
+    AGENT_TAB_INFO = {
+        'market_analysis': {
+            'tab_index': 2,
+            'tab_name': '📈 Market',
+            'icon': '📈'
+        },
+        'portfolio_analysis': {
+            'tab_index': 1,
+            'tab_name': '📊 Portfolio',
+            'icon': '📊'
+        },
+        'goal_planning': {
+            'tab_index': 3,
+            'tab_name': '🎯 Goals',
+            'icon': '🎯'
+        },
+        'news_synthesizer': {
+            'tab_index': 2,
+            'tab_name': '📈 Market',
+            'icon': '📰'
+        },
     }
-    
+
     # Get the primary agent (first one used)
     if not agents_used:
         return
-    
+
     primary_agent = agents_used[0]
-    target_tab = AGENT_TO_TAB.get(primary_agent)
-    
-    # Only switch if not already in that tab and if we should switch
-    if target_tab is not None and target_tab != 0:  # Don't switch for finance_qa
-        # Extract relevant data based on agent type
-        preload_data = {}
-        
-        if primary_agent == 'market_analysis':
-            # Extract ticker symbols from query
-            ticker = extract_ticker_from_query(query)
-            if ticker:
-                preload_data['ticker'] = ticker
-                st.session_state.lookup_ticker = ticker
-                # Show a helpful message with action button
-                st.info(f"🚀 **Click the Market tab above** to see detailed {ticker} information with charts and metrics!")
-        
-        elif primary_agent == 'portfolio_analysis':
-            # Pre-load portfolio analysis if we have portfolio data
-            if st.session_state.portfolio:
-                st.info("🚀 **Click the Portfolio tab above** for detailed analysis with charts and breakdowns!")
-        
-        elif primary_agent == 'goal_planning':
-            # Extract goal-related numbers if present
-            goal_amount = extract_dollar_amount(query)
-            if goal_amount:
-                preload_data['target_amount'] = goal_amount
-                st.info(f"🚀 **Click the Goals tab above** to visualize your ${goal_amount:,.0f} goal with projections!")
-            else:
-                st.info("🚀 **Click the Goals tab above** to plan and visualize your financial goals!")
-        
-        # Store preload data and trigger tab switch
-        st.session_state.preload_data = preload_data
-        st.session_state.switch_to_tab = target_tab
-        # Force immediate rerun to switch tabs
-        st.rerun()
+    tab_info = AGENT_TAB_INFO.get(primary_agent)
+
+    # Only show link if there's a relevant tab (not for general Q&A)
+    if tab_info is None:
+        return
+
+    # Extract relevant data based on agent type
+    preload_data = {}
+    link_text = ""
+    message_text = ""
+
+    if primary_agent == 'market_analysis':
+        ticker = extract_ticker_from_query(query)
+        if ticker:
+            preload_data['ticker'] = ticker
+            link_text = f"View {ticker} details"
+            message_text = f"Want to see detailed charts and metrics for {ticker}?"
+        else:
+            link_text = "View market analysis"
+            message_text = "Want to explore detailed market data?"
+
+    elif primary_agent == 'portfolio_analysis':
+        if st.session_state.portfolio:
+            link_text = "View portfolio breakdown"
+            message_text = "Want to see detailed portfolio analysis with charts?"
+        else:
+            link_text = "Go to Portfolio tab"
+            message_text = "Upload your portfolio to see detailed analysis"
+
+    elif primary_agent == 'goal_planning':
+        goal_amount = extract_dollar_amount(query)
+        if goal_amount:
+            preload_data['target_amount'] = goal_amount
+            link_text = f"Visualize ${goal_amount:,.0f} goal"
+            message_text = f"Want to see growth projections for your ${goal_amount:,.0f} goal?"
+        else:
+            link_text = "Plan your goal"
+            message_text = "Want to visualize your financial goal with detailed projections?"
+
+    # Store preload data
+    st.session_state.preload_data = preload_data
+    st.session_state.pending_tab_action = {
+        'tab_index': tab_info['tab_index'],
+        'icon': tab_info['icon'],
+        'button_text': link_text,
+        'message': message_text
+    }
+
+    # Force a rerun so the button appears immediately
+    st.rerun()
 
 
 def extract_ticker_from_query(query: str) -> Optional[str]:
     """
     Extract ticker symbol from user query.
-    
+
     Args:
         query: User's question
-    
+
     Returns:
         Ticker symbol if found, None otherwise
     """
     import re
-    
+    import json
+
     # Common patterns for ticker symbols
     query_upper = query.upper()
-    
+
     # Look for $ followed by ticker (e.g., $AAPL)
     dollar_match = re.search(r'\$([A-Z]{1,5})\b', query_upper)
     if dollar_match:
         return dollar_match.group(1)
-    
-    # Common stock tickers
-    common_tickers = {
-        'APPLE': 'AAPL',
-        'MICROSOFT': 'MSFT',
-        'GOOGLE': 'GOOGL',
-        'ALPHABET': 'GOOGL',
-        'AMAZON': 'AMZN',
-        'TESLA': 'TSLA',
-        'META': 'META',
-        'FACEBOOK': 'META',
-        'NVIDIA': 'NVDA',
-        'AMD': 'AMD',
-        'NETFLIX': 'NFLX',
-        'DISNEY': 'DIS',
-        'S&P 500': 'SPY',
-        'S&P': 'SPY',
-        'NASDAQ': 'QQQ',
-    }
-    
+
+    # Load company tickers from JSON file
+    ticker_file = Path(__file__).parent.parent / "data" / "company_tickers.json"
+    try:
+        with open(ticker_file, 'r') as f:
+            common_tickers = json.load(f)
+    except FileNotFoundError:
+        # Fallback to minimal set if file not found
+        common_tickers = {
+            'APPLE': 'AAPL',
+            'MICROSOFT': 'MSFT',
+            'TESLA': 'TSLA',
+            'WALMART': 'WMT',
+        }
+
     for name, ticker in common_tickers.items():
         if name in query_upper:
             return ticker
