@@ -63,6 +63,8 @@ def init_session_state():
         st.session_state.pending_tab_action = None
     if 'navigate_to_tab' not in st.session_state:
         st.session_state.navigate_to_tab = None
+    if 'selected_message_idx' not in st.session_state:
+        st.session_state.selected_message_idx = None
 
 
 def main():
@@ -130,6 +132,41 @@ def main():
         - 🎯 Plan your financial goals
         """)
         
+        # Chat History in Sidebar
+        st.markdown("---")
+        if len(st.session_state.chat_history) > 0:
+            with st.expander(f"📜 Chat History ({len(st.session_state.chat_history)} messages)", expanded=True):
+                st.markdown("*Click a message to view full details*")
+                
+                # Group messages by pairs (user + assistant)
+                for idx in range(0, len(st.session_state.chat_history), 2):
+                    # Get user message
+                    if idx < len(st.session_state.chat_history):
+                        user_msg = st.session_state.chat_history[idx]
+                        user_content = user_msg.get("content", "")
+                        user_preview = user_content[:60] + "..." if len(user_content) > 60 else user_content
+                        
+                        # Check if there's an assistant response
+                        has_response = (idx + 1) < len(st.session_state.chat_history)
+                        
+                        # Create clickable button for this message pair
+                        button_label = f"💬 {user_preview}"
+                        if st.button(
+                            button_label,
+                            key=f"msg_pair_{idx}",
+                            use_container_width=True,
+                            help="Click to view full conversation"
+                        ):
+                            st.session_state.selected_message_idx = idx
+                            st.session_state.active_tab = 0  # Switch to chat tab
+                            st.rerun()
+                
+                st.markdown("---")
+                if st.button("🗑️ Clear All", key="sidebar_clear_history", use_container_width=True):
+                    st.session_state.chat_history = []
+                    st.session_state.selected_message_idx = None
+                    st.rerun()
+        
         st.markdown("---")
         st.markdown("### 🚀 Smart Tab Navigation")
         st.markdown("""
@@ -144,8 +181,9 @@ def main():
         st.markdown("---")
         st.markdown("### Quick Actions")
 
-        if st.button("🔄 Clear Chat History"):
+        if st.button("🔄 Start New Chat"):
             st.session_state.chat_history = []
+            st.session_state.selected_message_idx = None
             st.rerun()
 
         if st.button("📋 Load Sample Portfolio"):
@@ -221,10 +259,58 @@ def render_chat_tab():
         The relevant tab will be pre-loaded with the information you asked about!
         """)
 
-    # Display chat history (no interactive buttons here)
-    for message in st.session_state.chat_history:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
+    # If a message is selected from sidebar, show it in detail
+    if st.session_state.selected_message_idx is not None:
+        idx = st.session_state.selected_message_idx
+        
+        st.markdown("---")
+        st.markdown("### 📖 Viewing Selected Conversation")
+        
+        # Show the user question
+        if idx < len(st.session_state.chat_history):
+            user_msg = st.session_state.chat_history[idx]
+            with st.chat_message("user"):
+                st.markdown(user_msg.get("content", ""))
+        
+        # Show the assistant response if it exists
+        if (idx + 1) < len(st.session_state.chat_history):
+            assistant_msg = st.session_state.chat_history[idx + 1]
+            with st.chat_message("assistant"):
+                st.markdown(assistant_msg.get("content", ""))
+                
+                # Show metadata if available
+                metadata = assistant_msg.get("metadata", {})
+                if metadata:
+                    agents = metadata.get("agents_used", [])
+                    sources = metadata.get("sources", [])
+                    
+                    if agents:
+                        st.caption(f"Agents used: {', '.join(agents)}")
+                    
+                    if sources:
+                        with st.expander("📚 Sources & References"):
+                            for source in sources:
+                                if isinstance(source, dict):
+                                    title = source.get("title", source.get("source", "Unknown"))
+                                    url = source.get("url")
+                                    st.markdown(f"- [{title}]({url})" if url else f"- {title}")
+                                else:
+                                    st.markdown(f"- {source}")
+        
+        # Button to go back to full chat
+        col1, col2, col3 = st.columns([1, 1, 1])
+        with col2:
+            if st.button("⬅️ Back to Full Chat", use_container_width=True):
+                st.session_state.selected_message_idx = None
+                st.rerun()
+        
+        st.markdown("---")
+    
+    else:
+        # Normal chat view - show all messages
+        for message in st.session_state.chat_history:
+            with st.chat_message(message["role"]):
+                st.markdown(message["content"])
 
     # Show pending action button AFTER chat history (so it appears below messages)
     if st.session_state.get('pending_tab_action'):
@@ -269,6 +355,9 @@ def render_chat_tab():
 
     # Chat input
     if prompt := st.chat_input("Ask a financial question..."):
+        # Clear selected message when asking new question
+        st.session_state.selected_message_idx = None
+        
         # Add user message to history
         st.session_state.chat_history.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
@@ -285,9 +374,20 @@ def render_chat_tab():
                         goals=st.session_state.goals
                     )
                     response = result.get("response", "I couldn't generate a response. Please try again.")
-
-                    # Add assistant response to history FIRST (before triggering rerun)
-                    st.session_state.chat_history.append({"role": "assistant", "content": response})
+                    
+                    # Collect metadata for this response
+                    agents_used = result.get("agents_used", [])
+                    sources = result.get("sources", [])
+                    
+                    # Add assistant response with metadata to history
+                    st.session_state.chat_history.append({
+                        "role": "assistant",
+                        "content": response,
+                        "metadata": {
+                            "agents_used": agents_used,
+                            "sources": sources
+                        }
+                    })
 
                     # Display response
                     st.markdown(response)
