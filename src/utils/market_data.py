@@ -209,18 +209,75 @@ def get_stock_news(ticker: str, num_news: int = 5) -> List[Dict[str, Any]]:
     """
     try:
         stock = yf.Ticker(ticker)
-        news = stock.news[:num_news] if stock.news else []
-
-        return [{
-            'title': item.get('title', ''),
-            'publisher': item.get('publisher', ''),
-            'link': item.get('link', ''),
-            'published': datetime.fromtimestamp(item.get('providerPublishTime', 0)).isoformat()
-            if item.get('providerPublishTime') else ''
-        } for item in news]
+        
+        # Try to get news - yfinance API structure changed
+        news_data = []
+        try:
+            if hasattr(stock, 'news') and stock.news:
+                news_data = stock.news
+        except:
+            pass
+        
+        # Parse actual news data - yfinance API changed structure, data is now nested
+        result = []
+        for item in news_data[:num_news]:
+            try:
+                # New API structure: data is nested under 'content' key
+                content = item.get('content', {})
+                
+                title = content.get('title', '')
+                link = content.get('clickThroughUrl', {}).get('url', '')
+                publisher = content.get('provider', {}).get('displayName', 'Unknown')
+                pub_date = content.get('pubDate', '')  # Already in ISO format
+                
+                # Only add if we have actual content
+                if title and link:
+                    news_item = {
+                        'title': str(title),
+                        'publisher': str(publisher),
+                        'link': str(link),
+                        'published': pub_date
+                    }
+                    result.append(news_item)
+            except Exception as e:
+                continue
+        
+        # If we got valid news, return it
+        if result and len(result) > 0:
+            return result
+        
+        # Otherwise return fallback news links
+        return [
+            {
+                'title': f"Latest {ticker} News on Yahoo Finance",
+                'publisher': 'Yahoo Finance',
+                'link': f"https://finance.yahoo.com/quote/{ticker}/news",
+                'published': ''
+            },
+            {
+                'title': f"MarketWatch: {ticker} Stock Analysis & News",
+                'publisher': 'MarketWatch',
+                'link': f"https://www.marketwatch.com/investing/stock/{ticker.lower()}",
+                'published': ''
+            },
+            {
+                'title': f"Seeking Alpha: {ticker} Stock News & Analysis",
+                'publisher': 'Seeking Alpha',
+                'link': f"https://seekingalpha.com/symbol/{ticker}",
+                'published': ''
+            }
+        ]
 
     except Exception as e:
-        return []
+        # Always return at least one link for news
+        return [
+            {
+                'title': f"View {ticker} News & Analysis",
+                'publisher': 'Yahoo Finance',
+                'link': f"https://finance.yahoo.com/quote/{ticker}",
+                'published': ''
+            }
+        ]
 
 
 def calculate_returns(

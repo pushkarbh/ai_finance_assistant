@@ -663,50 +663,116 @@ def render_market_tab():
 
                     # Quick interpretation
                     st.markdown("#### 💡 **Quick Take**")
-                    ytd_return = returns.get('YTD', 0)
-                    if ytd_return and ytd_return != "N/A":
-                        ytd_val = float(ytd_return.strip('%')) if isinstance(ytd_return, str) else ytd_return
-                        if ytd_val > 20:
-                            st.success("**Strong performer** this year! 🚀")
-                        elif ytd_val > 10:
-                            st.info("**Solid gains** year-to-date 📈")
-                        elif ytd_val > 0:
-                            st.info("**Modest positive** performance 📊")
-                        elif ytd_val > -10:
-                            st.warning("**Slight decline** this year 📉")
+                    
+                    # Try multiple metrics to generate insights
+                    quick_take_shown = False
+                    
+                    # Check 1 month performance
+                    one_mo = returns.get('1mo')
+                    if one_mo and one_mo != "N/A":
+                        try:
+                            mo_val = float(one_mo.strip('%')) if isinstance(one_mo, str) else one_mo
+                            if mo_val > 15:
+                                st.success("**🚀 Strong momentum** - Up significantly this month!")
+                                quick_take_shown = True
+                            elif mo_val > 5:
+                                st.info("**📈 Positive trend** - Gaining this month")
+                                quick_take_shown = True
+                            elif mo_val < -15:
+                                st.error("**📉 Sharp decline** - Down significantly this month")
+                                quick_take_shown = True
+                            elif mo_val < -5:
+                                st.warning("**⚠️ Pullback** - Declining this month")
+                                quick_take_shown = True
+                        except:
+                            pass
+                    
+                    # Check P/E ratio if no momentum signal
+                    if not quick_take_shown and pe_ratio != 'N/A':
+                        try:
+                            pe_val = float(pe_ratio) if isinstance(pe_ratio, (int, float)) else None
+                            if pe_val:
+                                if pe_val < 15:
+                                    st.success("**💎 Value opportunity** - Trading below average P/E")
+                                    quick_take_shown = True
+                                elif pe_val > 30:
+                                    st.warning("**⚡ Premium valuation** - High P/E suggests growth expectations")
+                                    quick_take_shown = True
+                        except:
+                            pass
+                    
+                    # Fallback to general assessment
+                    if not quick_take_shown:
+                        if div_yield > 0.03:
+                            st.info("**💰 Income-focused** - Good dividend yield for income investors")
                         else:
-                            st.error("**Underperforming** this year ⚠️")
+                            st.info("**📊 Stable position** - Monitor for entry/exit opportunities")
+                    
+                    # Add a tip
+                    st.caption("💡 *Tip: This is a quick snapshot. Do your own research before investing.*")
 
                     st.markdown("---")
 
-                    # Top 5 News
+                    # Top 3 News
                     st.markdown("#### 📰 **Latest News**")
 
-                    try:
-                        news_items = get_stock_news(lookup_ticker, num_news=5)
+                    news_items = get_stock_news(lookup_ticker, num_news=3)
+                    
+                    if news_items and len(news_items) > 0:
+                        for news in news_items:
+                            title = news.get('title', '')
+                            link = news.get('link', '')
+                            publisher = news.get('publisher', 'Financial News')
+                            published = news.get('published', '')
 
-                        if news_items and len(news_items) > 0:
-                            for i, news in enumerate(news_items, 1):
-                                title = news.get('title', 'No title')
-                                link = news.get('link', '')
-                                publisher = news.get('publisher', 'Unknown')
-
-                                # Skip if no valid link or title
-                                if not title or title == 'No title':
-                                    continue
-
-                                # Use st.markdown with link instead of HTML
-                                with st.container():
-                                    if link:
-                                        st.markdown(f"**{i}.** [{title}]({link})")
-                                    else:
-                                        st.markdown(f"**{i}.** {title}")
-                                    st.caption(f"📰 {publisher}")
-                                    st.markdown("")  # Spacing
-                        else:
-                            st.info("No recent news available for this stock")
-                    except Exception as e:
-                        st.warning(f"Could not load news: {str(e)}")
+                            if title and link:
+                                # Format timestamp if available
+                                time_str = ""
+                                if published:
+                                    try:
+                                        from datetime import datetime
+                                        pub_dt = datetime.fromisoformat(published.replace('Z', '+00:00'))
+                                        time_str = pub_dt.strftime('%b %d, %Y')
+                                    except:
+                                        pass
+                                
+                                st.markdown(
+                                    f"""
+                                    <div style="margin-bottom: 12px; padding: 14px 16px; 
+                                                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                                                border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                                                transition: transform 0.2s;">
+                                        <a href="{link}" target="_blank" rel="noopener noreferrer" 
+                                           style="text-decoration: none; color: white; font-weight: 600; font-size: 15px; line-height: 1.4;">
+                                            {title}
+                                        </a>
+                                        <div style="margin-top: 8px; display: flex; gap: 12px; align-items: center;">
+                                            <span style="color: rgba(255,255,255,0.9); font-size: 12px; font-weight: 500;">
+                                                📡 {publisher}
+                                            </span>
+                                            {f'<span style="color: rgba(255,255,255,0.7); font-size: 11px;">• {time_str}</span>' if time_str else ''}
+                                        </div>
+                                    </div>
+                                    """,
+                                    unsafe_allow_html=True
+                                )
+                    else:
+                        st.info("No recent news available.")
+                        st.markdown(
+                            f"""
+                            <div style="margin-bottom: 15px; padding: 10px; background-color: #f8f9fa; border-left: 3px solid #0066cc; border-radius: 4px;">
+                                <a href="https://finance.yahoo.com/quote/{lookup_ticker}/news" target="_blank" rel="noopener noreferrer" 
+                                   style="text-decoration: none; color: #0066cc; font-weight: 500; font-size: 14px;">
+                                    📰 View Latest {lookup_ticker} News
+                                </a>
+                                <br>
+                                <span style="color: #666; font-size: 12px; margin-top: 4px; display: inline-block;">
+                                    🗞️ Yahoo Finance
+                                </span>
+                            </div>
+                            """,
+                            unsafe_allow_html=True
+                        )
 
                 with col_right:
                     # Display company name
