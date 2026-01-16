@@ -11,6 +11,11 @@ llm:
   temperature: 0.7
   max_tokens: 2000
 
+# To use Anthropic (Claude Sonnet), set provider to "anthropic" and choose a Claude model:
+# llm:
+#   provider: "anthropic"
+#   model: "claude-sonnet"
+
 embeddings:
   model: "all-MiniLM-L6-v2"
   dimension: 384

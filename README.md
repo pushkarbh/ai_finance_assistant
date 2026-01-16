@@ -68,6 +68,12 @@ sequenceDiagram
 
 ## Features
 
+### 🤖 Smart Tab Switching (NEW!)
+- **Context-aware navigation**: Automatically switches to the relevant tab based on your question
+- **Data pre-loading**: Ticker symbols, amounts, and other data extracted from your query
+- **Seamless UX**: Ask about Apple stock in chat, get detailed AAPL info in the Market tab
+- See [SMART_TAB_SWITCHING.md](docs/SMART_TAB_SWITCHING.md) for details
+
 ### 1. Finance Q&A Agent (RAG-based)
 - Answers educational questions about investing, financial planning, and market concepts
 - Uses FAISS vector store with 20+ curated financial education articles
@@ -333,26 +339,53 @@ pytest --cov=src --cov-report=html
 
 ## Usage
 
+### 🚀 Smart Tab Switching (Quick Start)
+
+The app now features intelligent navigation! Just ask questions naturally:
+
+**Market Questions:**
+- "How is Apple doing?" → Automatically suggests Market tab with AAPL loaded
+- "What's Tesla stock price?" → Market tab with TSLA ready
+- "$MSFT analysis" → Market tab with Microsoft data
+
+**Portfolio Questions:**
+- "Analyze my portfolio" → Portfolio tab with full analysis
+- "Is my portfolio diversified?" → Portfolio insights ready
+
+**Goal Planning:**
+- "Save $50K for a house" → Goals tab with $50,000 pre-filled
+- "Retire with $1M in 20 years" → Goals calculator ready
+
+**📖 See detailed examples:** [docs/USAGE_EXAMPLES.md](docs/USAGE_EXAMPLES.md)
+
 ### Chat Tab
 Ask any financial question:
 - "What are stocks and how do they work?"
 - "Explain the difference between traditional and Roth IRA"
 - "What is dollar-cost averaging?"
 
+The AI will answer and guide you to the relevant tab when appropriate.
+
 ### Portfolio Tab
 1. Upload a CSV file with columns: `ticker, shares, purchase_price`
 2. View portfolio metrics and allocation
-3. Ask questions about your portfolio
+3. Ask questions about your portfolio in Chat
 
 ### Market Tab
 - View real-time market indices
-- Look up individual stock prices
+- Look up individual stock prices (or ask in Chat!)
 - Check historical performance
 
 ### Goals Tab
 1. Add financial goals (retirement, house, education)
 2. Track progress toward goals
-3. Calculate required contributions
+3. Calculate required contributions (or ask in Chat!)
+
+### 📚 Documentation
+- **[Smart Tab Switching Guide](docs/SMART_TAB_SWITCHING.md)** - Technical details
+- **[Usage Examples](docs/USAGE_EXAMPLES.md)** - Step-by-step workflows
+- **[Visual Flow](docs/VISUAL_FLOW.md)** - Diagrams and flowcharts
+- **[Implementation Summary](docs/IMPLEMENTATION_SUMMARY.md)** - Complete feature overview
 
 ## Testing
 

@@ -9,7 +9,7 @@ from langchain_openai import ChatOpenAI
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, SystemMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
-from src.core.config import get_config, get_openai_api_key
+from src.core.config import get_config, get_openai_api_key, get_anthropic_api_key
 
 
 class LLMManager:
@@ -34,16 +34,33 @@ class LLMManager:
         """
         config = get_config()
 
+        self.provider = config.llm.provider
         self.model = model or config.llm.model
         self.temperature = temperature if temperature is not None else config.llm.temperature
         self.max_tokens = max_tokens or config.llm.max_tokens
 
-        self._llm = ChatOpenAI(
-            api_key=get_openai_api_key(),
-            model=self.model,
-            temperature=self.temperature,
-            max_tokens=self.max_tokens
-        )
+        # Initialize the appropriate provider LLM
+        if self.provider == "anthropic":
+            try:
+                from langchain_anthropic import ChatAnthropic
+            except Exception:
+                raise ImportError(
+                    "langchain_anthropic is required for Anthropic provider. Install it and set ANTHROPIC_API_KEY."
+                )
+
+            self._llm = ChatAnthropic(
+                api_key=get_anthropic_api_key(),
+                model=self.model,
+                temperature=self.temperature,
+            )
+        else:
+            # Default: OpenAI
+            self._llm = ChatOpenAI(
+                api_key=get_openai_api_key(),
+                model=self.model,
+                temperature=self.temperature,
+                max_tokens=self.max_tokens
+            )
 
     @property
     def llm(self) -> ChatOpenAI:
@@ -140,6 +157,22 @@ def get_llm(
         Configured ChatOpenAI instance
     """
     config = get_config()
+
+    provider = config.llm.provider
+
+    if provider == "anthropic":
+        try:
+            from langchain_anthropic import ChatAnthropic
+        except Exception:
+            raise ImportError(
+                "langchain_anthropic is required for Anthropic provider. Install it and set ANTHROPIC_API_KEY."
+            )
+
+        return ChatAnthropic(
+            api_key=get_anthropic_api_key(),
+            model=model or config.llm.model,
+            temperature=temperature if temperature is not None else config.llm.temperature,
+        )
 
     return ChatOpenAI(
         api_key=get_openai_api_key(),

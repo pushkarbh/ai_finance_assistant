@@ -5,6 +5,7 @@ Provides a multi-tab interface for chat, portfolio analysis, market data, and go
 
 import sys
 from pathlib import Path
+from typing import Optional, List
 
 # Add project root to path for imports
 project_root = Path(__file__).parent.parent.parent
@@ -48,6 +49,15 @@ def init_session_state():
         st.session_state.portfolio = None
     if 'goals' not in st.session_state:
         st.session_state.goals = []
+    # Tab switching and pre-loading
+    if 'active_tab' not in st.session_state:
+        st.session_state.active_tab = 0  # Default to chat tab
+    if 'switch_to_tab' not in st.session_state:
+        st.session_state.switch_to_tab = None
+    if 'preload_data' not in st.session_state:
+        st.session_state.preload_data = {}
+    if 'lookup_ticker' not in st.session_state:
+        st.session_state.lookup_ticker = None
 
 
 def main():
@@ -67,6 +77,17 @@ def main():
         - 📈 Check market data
         - 🎯 Plan your financial goals
         """)
+        
+        st.markdown("---")
+        st.markdown("### 🚀 Smart Tab Navigation")
+        st.markdown("""
+        Ask questions and I'll guide you to the right tab!
+        
+        **Try these:**
+        - "How is Apple doing?" → 📈 Market
+        - "Analyze my portfolio" → 📊 Portfolio  
+        - "Save $50K for a house" → 🎯 Goals
+        """)
 
         st.markdown("---")
         st.markdown("### Quick Actions")
@@ -79,24 +100,42 @@ def main():
             load_sample_portfolio()
             st.success("Sample portfolio loaded!")
 
-    # Main tabs
-    tab1, tab2, tab3, tab4 = st.tabs([
-        "💬 Chat",
-        "📊 Portfolio",
-        "📈 Market",
-        "🎯 Goals"
-    ])
+    # Handle tab switching from agent response
+    if st.session_state.switch_to_tab is not None:
+        st.session_state.active_tab = st.session_state.switch_to_tab
+        st.session_state.switch_to_tab = None
+        # Force rerun to update tab selection
+        st.rerun()
 
-    with tab1:
+    # Custom tab selector for programmatic switching
+    tab_names = ["💬 Chat", "📊 Portfolio", "📈 Market", "🎯 Goals"]
+    
+    # Use radio buttons styled as tabs (hidden label)
+    selected_tab = st.radio(
+        "Select Tab",
+        options=range(len(tab_names)),
+        format_func=lambda x: tab_names[x],
+        index=st.session_state.active_tab,
+        horizontal=True,
+        label_visibility="collapsed",
+        key="tab_selector"
+    )
+    
+    # Update active tab when user manually switches
+    if selected_tab != st.session_state.active_tab:
+        st.session_state.active_tab = selected_tab
+        st.rerun()
+
+    # Render the selected tab
+    st.markdown("---")
+    
+    if st.session_state.active_tab == 0:
         render_chat_tab()
-
-    with tab2:
+    elif st.session_state.active_tab == 1:
         render_portfolio_tab()
-
-    with tab3:
+    elif st.session_state.active_tab == 2:
         render_market_tab()
-
-    with tab4:
+    elif st.session_state.active_tab == 3:
         render_goals_tab()
 
 
@@ -104,6 +143,18 @@ def render_chat_tab():
     """Render the chat interface tab."""
     st.header("💬 Financial Education Chat")
     st.markdown("Ask me anything about investing, financial planning, or your portfolio!")
+    
+    # Info about smart tab switching
+    with st.expander("ℹ️ Smart Tab Switching"):
+        st.markdown("""
+        **Ask questions and I'll automatically take you to the relevant tab!**
+        
+        - 📈 **Market questions** (e.g., "How is Apple stock doing?") → Switches to Market tab
+        - 📊 **Portfolio questions** → Switches to Portfolio tab  
+        - 🎯 **Goal planning questions** → Switches to Goals tab
+        
+        The relevant tab will be pre-loaded with the information you asked about!
+        """)
 
     # Display chat history
     for message in st.session_state.chat_history:
@@ -136,6 +187,9 @@ def render_chat_tab():
                     agents_used = result.get("agents_used", [])
                     if agents_used:
                         st.caption(f"Agents used: {', '.join(agents_used)}")
+
+                        # Handle automatic tab switching and data pre-loading
+                        handle_agent_tab_switching(agents_used, prompt, result)
 
                     # Show sources in an expander (for RAG citations)
                     sources = result.get("sources", [])
@@ -350,12 +404,23 @@ def render_market_tab():
 
     # Stock lookup
     st.subheader("Stock Lookup")
+    
+    # Check if we have pre-loaded ticker data from chat
+    preload_ticker = st.session_state.preload_data.get('ticker')
+    if preload_ticker and preload_ticker != st.session_state.get('lookup_ticker'):
+        st.session_state.lookup_ticker = preload_ticker
+        # Clear preload data after using it
+        st.session_state.preload_data = {}
+        st.success(f"✨ Loaded {preload_ticker} from your question!")
+    
     col1, col2 = st.columns([1, 2])
 
     with col1:
-        ticker = st.text_input("Enter Ticker Symbol", value="AAPL")
+        default_ticker = st.session_state.get('lookup_ticker', 'AAPL')
+        ticker = st.text_input("Enter Ticker Symbol", value=default_ticker)
         if st.button("Look Up"):
             st.session_state.lookup_ticker = ticker.upper()
+            st.rerun()
 
     with col2:
         lookup_ticker = st.session_state.get('lookup_ticker', 'AAPL')
@@ -404,6 +469,15 @@ def render_goals_tab():
     Use this calculator to plan for your financial goals. We'll show you projections
     based on different return scenarios.
     """)
+    
+    # Check if we have pre-loaded goal amount from chat
+    preload_amount = st.session_state.preload_data.get('target_amount')
+    default_target = 100000
+    if preload_amount:
+        default_target = int(preload_amount)
+        st.success(f"✨ Pre-filled target amount ${default_target:,} from your question!")
+        # Clear preload data after showing message
+        st.session_state.preload_data = {}
 
     col1, col2 = st.columns([1, 1])
 
@@ -418,8 +492,9 @@ def render_goals_tab():
         target_amount = st.number_input(
             "Target Amount ($)",
             min_value=0,
-            value=100000,
-            step=10000
+            value=default_target,
+            step=10000,
+            key="goal_target_amount"
         )
 
         current_savings = st.number_input(
@@ -527,6 +602,172 @@ def render_goals_tab():
                 yaxis_tickformat='$,.0f'
             )
             st.plotly_chart(fig, use_container_width=True)
+
+
+def handle_agent_tab_switching(agents_used: List[str], query: str, result: dict):
+    """
+    Handle automatic tab switching based on which agent answered.
+    Also extracts and pre-loads relevant data for the target tab.
+    
+    Args:
+        agents_used: List of agent names that processed the query
+        query: The original user query
+        result: The complete result from process_query
+    """
+    # Mapping of agents to tab indices
+    AGENT_TO_TAB = {
+        'market_analysis': 2,      # Market tab
+        'portfolio_analysis': 1,   # Portfolio tab
+        'goal_planning': 3,        # Goals tab
+        'news_synthesizer': 2,     # Market tab (news relates to market)
+        'finance_qa': 0,           # Stay in chat tab
+    }
+    
+    # Get the primary agent (first one used)
+    if not agents_used:
+        return
+    
+    primary_agent = agents_used[0]
+    target_tab = AGENT_TO_TAB.get(primary_agent)
+    
+    # Only switch if not already in that tab and if we should switch
+    if target_tab is not None and target_tab != 0:  # Don't switch for finance_qa
+        # Extract relevant data based on agent type
+        preload_data = {}
+        
+        if primary_agent == 'market_analysis':
+            # Extract ticker symbols from query
+            ticker = extract_ticker_from_query(query)
+            if ticker:
+                preload_data['ticker'] = ticker
+                st.session_state.lookup_ticker = ticker
+                # Show a helpful message with action button
+                st.info(f"🚀 **Click the Market tab above** to see detailed {ticker} information with charts and metrics!")
+        
+        elif primary_agent == 'portfolio_analysis':
+            # Pre-load portfolio analysis if we have portfolio data
+            if st.session_state.portfolio:
+                st.info("🚀 **Click the Portfolio tab above** for detailed analysis with charts and breakdowns!")
+        
+        elif primary_agent == 'goal_planning':
+            # Extract goal-related numbers if present
+            goal_amount = extract_dollar_amount(query)
+            if goal_amount:
+                preload_data['target_amount'] = goal_amount
+                st.info(f"🚀 **Click the Goals tab above** to visualize your ${goal_amount:,.0f} goal with projections!")
+            else:
+                st.info("🚀 **Click the Goals tab above** to plan and visualize your financial goals!")
+        
+        # Store preload data and trigger tab switch
+        st.session_state.preload_data = preload_data
+        st.session_state.switch_to_tab = target_tab
+        # Force immediate rerun to switch tabs
+        st.rerun()
+
+
+def extract_ticker_from_query(query: str) -> Optional[str]:
+    """
+    Extract ticker symbol from user query.
+    
+    Args:
+        query: User's question
+    
+    Returns:
+        Ticker symbol if found, None otherwise
+    """
+    import re
+    
+    # Common patterns for ticker symbols
+    query_upper = query.upper()
+    
+    # Look for $ followed by ticker (e.g., $AAPL)
+    dollar_match = re.search(r'\$([A-Z]{1,5})\b', query_upper)
+    if dollar_match:
+        return dollar_match.group(1)
+    
+    # Common stock tickers
+    common_tickers = {
+        'APPLE': 'AAPL',
+        'MICROSOFT': 'MSFT',
+        'GOOGLE': 'GOOGL',
+        'ALPHABET': 'GOOGL',
+        'AMAZON': 'AMZN',
+        'TESLA': 'TSLA',
+        'META': 'META',
+        'FACEBOOK': 'META',
+        'NVIDIA': 'NVDA',
+        'AMD': 'AMD',
+        'NETFLIX': 'NFLX',
+        'DISNEY': 'DIS',
+        'S&P 500': 'SPY',
+        'S&P': 'SPY',
+        'NASDAQ': 'QQQ',
+    }
+    
+    for name, ticker in common_tickers.items():
+        if name in query_upper:
+            return ticker
+    
+    # Words to exclude (common financial terms that aren't tickers)
+    excluded_terms = {
+        'ETF', 'IRA', 'RSU', 'ESG', 'IPO', 'CEO', 'CFO', 'SEC',
+        'STOCK', 'BOND', 'FUND', 'WHAT', 'HOW', 'WHY', 'WHO', 'WHEN',
+        'IS', 'ARE', 'CAN', 'DOES', 'THE', 'AND', 'OR', 'FOR', 'WITH'
+    }
+    
+    # Look for standalone 1-5 letter uppercase words (potential tickers)
+    words = query_upper.split()
+    for word in words:
+        # Remove common punctuation
+        clean_word = re.sub(r'[^A-Z]', '', word)
+        if len(clean_word) >= 1 and len(clean_word) <= 5 and clean_word.isalpha():
+            # Skip if it's an excluded term
+            if clean_word in excluded_terms:
+                continue
+            # Check if it looks like a ticker (all caps in original)
+            if clean_word in query:
+                return clean_word
+    
+    return None
+
+
+def extract_dollar_amount(query: str) -> Optional[float]:
+    """
+    Extract dollar amount from query.
+    
+    Args:
+        query: User's question
+    
+    Returns:
+        Dollar amount if found, None otherwise
+    """
+    import re
+    
+    # Look for patterns like $100,000 or $1M or 100k
+    patterns = [
+        r'\$([0-9,]+\.?[0-9]*)\s*(?:million|M)',  # $1.5M, $1 million
+        r'\$([0-9,]+\.?[0-9]*)\s*(?:thousand|K)',  # $100K, $100 thousand
+        r'\$([0-9,]+\.?[0-9]*)',  # $100,000
+        r'([0-9,]+\.?[0-9]*)\s*(?:million|M)',  # 1.5M
+        r'([0-9,]+\.?[0-9]*)\s*(?:thousand|K)',  # 100K
+    ]
+    
+    for pattern in patterns:
+        match = re.search(pattern, query, re.IGNORECASE)
+        if match:
+            amount_str = match.group(1).replace(',', '')
+            try:
+                amount = float(amount_str)
+                # Apply multipliers
+                if re.search(r'million|M', match.group(0), re.IGNORECASE):
+                    amount *= 1_000_000
+                elif re.search(r'thousand|K', match.group(0), re.IGNORECASE):
+                    amount *= 1_000
+                return amount
+            except ValueError:
+                continue
+    
+    return None
 
 
 def load_sample_portfolio():

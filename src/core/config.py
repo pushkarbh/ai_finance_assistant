@@ -145,6 +145,16 @@ def get_openai_api_key() -> str:
     return api_key
 
 
+def get_anthropic_api_key() -> str:
+    """Get Anthropic API key from environment."""
+    api_key = os.getenv('ANTHROPIC_API_KEY')
+    if not api_key:
+        raise ValueError(
+            "ANTHROPIC_API_KEY not found. Please set it in your .env file or environment."
+        )
+    return api_key
+
+
 def get_alpha_vantage_api_key() -> Optional[str]:
     """Get Alpha Vantage API key from environment (optional)."""
     return os.getenv('ALPHA_VANTAGE_API_KEY')
