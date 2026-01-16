@@ -511,97 +511,223 @@ def render_market_tab():
         st.session_state.preload_data = {}
         st.success(f"✨ Loaded {preload_ticker} from your question!")
 
-    col1, col2 = st.columns([1, 2])
-
-    with col1:
+    # Ticker input at the top
+    col_input1, col_input2, col_input3 = st.columns([2, 1, 3])
+    with col_input1:
         default_ticker = st.session_state.get('lookup_ticker', 'AAPL')
         ticker = st.text_input("Enter Ticker Symbol", value=default_ticker)
-        if st.button("Look Up"):
+    with col_input2:
+        if st.button("Look Up", use_container_width=True):
             st.session_state.lookup_ticker = ticker.upper()
             st.rerun()
 
-    with col2:
-        lookup_ticker = st.session_state.get('lookup_ticker', 'AAPL')
-        if lookup_ticker:
-            with st.spinner(f"Loading {lookup_ticker}..."):
-                try:
-                    price_data = get_stock_price(lookup_ticker)
-                    info = get_stock_info(lookup_ticker)
-                    returns = calculate_returns(lookup_ticker)
+    lookup_ticker = st.session_state.get('lookup_ticker', 'AAPL')
+    if lookup_ticker:
+        with st.spinner(f"Loading {lookup_ticker}..."):
+            try:
+                price_data = get_stock_price(lookup_ticker)
+                info = get_stock_info(lookup_ticker)
+                returns = calculate_returns(lookup_ticker)
 
-                    # Display info
-                    st.subheader(f"{info.get('name', lookup_ticker)} ({lookup_ticker})")
+                # Main layout: Left summary + Right charts
+                col_left, col_right = st.columns([1, 2])
 
-                    # Add context about what we're showing
-                    st.markdown("""
-                    Below you'll find key metrics and performance data for this stock.
-                    Use this information to understand the company's current valuation and recent performance.
-                    """)
+                with col_left:
+                    # Company Performance Summary
+                    st.markdown("### 📊 Performance Summary")
+                    st.markdown(f"#### **{info.get('name', lookup_ticker)}**")
+                    st.markdown(f"**Ticker:** {lookup_ticker}")
 
-                    # Price metrics
-                    st.markdown("### 📊 Current Valuation")
-                    col1, col2, col3 = st.columns(3)
-                    with col1:
-                        current_price = price_data.get('price', 0)
-                        change_pct = price_data.get('change_pct', 0)
-                        st.metric("Current Price", f"${current_price:.2f}", f"{change_pct:.2f}%")
-                        st.caption("Today's price and % change")
-                    with col2:
-                        pe_ratio = info.get('pe_ratio', 'N/A')
-                        st.metric("P/E Ratio", f"{pe_ratio}")
-                        st.caption("Price-to-Earnings ratio - lower may indicate value")
-                    with col3:
-                        div_yield = info.get('dividend_yield', 0) or 0
-                        st.metric("Dividend Yield", f"{div_yield * 100:.2f}%")
-                        st.caption("Annual dividend as % of price")
+                    # Current price with large display
+                    current_price = price_data.get('price', 0)
+                    change_pct = price_data.get('change_pct', 0)
+                    change_color = "🟢" if change_pct >= 0 else "🔴"
+                    st.markdown(f"### {change_color} **${current_price:.2f}**")
+                    if change_pct >= 0:
+                        st.markdown(f"<span style='color: green; font-size: 18px;'>**+{change_pct:.2f}%** today</span>", unsafe_allow_html=True)
+                    else:
+                        st.markdown(f"<span style='color: red; font-size: 18px;'>**{change_pct:.2f}%** today</span>", unsafe_allow_html=True)
 
-                    # Returns section with explanation
-                    st.markdown("### 📈 Historical Performance")
-                    st.markdown("""
-                    These returns show how much the stock has gained or lost over different time periods.
-                    Positive numbers indicate gains, negative numbers indicate losses.
-                    """)
+                    st.markdown("---")
 
-                    return_cols = st.columns(4)
-                    for i, (period, ret) in enumerate(returns.items()):
-                        with return_cols[i]:
-                            delta_val = f"{ret}%" if ret else "N/A"
-                            st.metric(period, delta_val)
+                    # Key metrics with bold highlights
+                    st.markdown("#### 📈 **Key Metrics**")
 
-                    # Chart with explanation
-                    st.markdown("### 📉 Price Chart (6 Months)")
-                    st.markdown("""
-                    This chart shows the stock's closing price over the last 6 months.
-                    Look for trends: is the price generally rising (uptrend), falling (downtrend), or staying flat?
-                    """)
+                    pe_ratio = info.get('pe_ratio', 'N/A')
+                    if pe_ratio != 'N/A':
+                        st.markdown(f"**P/E Ratio:** {pe_ratio}")
+                        if isinstance(pe_ratio, (int, float)) and pe_ratio < 15:
+                            st.caption("✨ *Potentially undervalued*")
+                        elif isinstance(pe_ratio, (int, float)) and pe_ratio > 30:
+                            st.caption("⚠️ *High valuation*")
 
-                    hist = get_historical_data(lookup_ticker, period="6mo")
-                    if not hist.empty:
-                        fig = px.line(
-                            hist,
-                            y='Close',
-                            title=f"{lookup_ticker} - 6 Month Price History",
-                            labels={'Close': 'Price ($)', 'Date': 'Date'}
-                        )
-                        fig.update_traces(line_color='#1f77b4', line_width=2)
-                        st.plotly_chart(fig, use_container_width=True)
+                    div_yield = info.get('dividend_yield', 0) or 0
+                    st.markdown(f"**Dividend Yield:** {div_yield * 100:.2f}%")
+                    if div_yield > 0.03:
+                        st.caption("💰 *Good income stock*")
 
-                        # Add simple trend analysis
-                        first_price = hist['Close'].iloc[0]
-                        last_price = hist['Close'].iloc[-1]
-                        pct_change = ((last_price - first_price) / first_price) * 100
-
-                        if pct_change > 10:
-                            st.success(f"✅ **Strong uptrend**: {lookup_ticker} is up {pct_change:.1f}% over 6 months")
-                        elif pct_change > 0:
-                            st.info(f"📈 **Modest gains**: {lookup_ticker} is up {pct_change:.1f}% over 6 months")
-                        elif pct_change > -10:
-                            st.warning(f"📉 **Slight decline**: {lookup_ticker} is down {abs(pct_change):.1f}% over 6 months")
+                    market_cap = info.get('market_cap', 0)
+                    if market_cap:
+                        if market_cap >= 1e12:
+                            st.markdown(f"**Market Cap:** ${market_cap/1e12:.2f}T")
+                        elif market_cap >= 1e9:
+                            st.markdown(f"**Market Cap:** ${market_cap/1e9:.2f}B")
                         else:
-                            st.error(f"⚠️ **Significant decline**: {lookup_ticker} is down {abs(pct_change):.1f}% over 6 months")
+                            st.markdown(f"**Market Cap:** ${market_cap/1e6:.2f}M")
 
-                except Exception as e:
-                    st.error(f"Error: {str(e)}")
+                    st.markdown("---")
+
+                    # Performance highlights
+                    st.markdown("#### 🎯 **Performance Highlights**")
+
+                    for period, ret in returns.items():
+                        if ret and ret != "N/A":
+                            ret_val = float(ret.strip('%')) if isinstance(ret, str) else ret
+                            if ret_val > 0:
+                                st.markdown(f"**{period}:** <span style='color: green;'>**+{ret}%**</span> ✅", unsafe_allow_html=True)
+                            else:
+                                st.markdown(f"**{period}:** <span style='color: red;'>**{ret}%**</span> 📉", unsafe_allow_html=True)
+
+                    st.markdown("---")
+
+                    # Quick interpretation
+                    st.markdown("#### 💡 **Quick Take**")
+                    ytd_return = returns.get('YTD', 0)
+                    if ytd_return and ytd_return != "N/A":
+                        ytd_val = float(ytd_return.strip('%')) if isinstance(ytd_return, str) else ytd_return
+                        if ytd_val > 20:
+                            st.success("**Strong performer** this year! 🚀")
+                        elif ytd_val > 10:
+                            st.info("**Solid gains** year-to-date 📈")
+                        elif ytd_val > 0:
+                            st.info("**Modest positive** performance 📊")
+                        elif ytd_val > -10:
+                            st.warning("**Slight decline** this year 📉")
+                        else:
+                            st.error("**Underperforming** this year ⚠️")
+
+                with col_right:
+                    # Display company name
+                    st.markdown(f"### {info.get('name', lookup_ticker)} ({lookup_ticker})")
+
+                    # Timeframe selector with tabs
+                    st.markdown("#### 📉 Historical Price Chart")
+
+                    timeframe_tab1, timeframe_tab2, timeframe_tab3, timeframe_tab4, timeframe_tab5 = st.tabs([
+                        "📅 1 Month", "📅 6 Months", "📅 YTD", "📅 1 Year", "📅 5 Years"
+                    ])
+
+                    # Helper function to create enhanced chart
+                    def create_enhanced_chart(ticker, period, title_suffix):
+                        try:
+                            hist = get_historical_data(ticker, period=period)
+                            if hist.empty:
+                                st.warning(f"No data available for {period}")
+                                return
+
+                            # Calculate percentage change
+                            first_price = hist['Close'].iloc[0]
+                            last_price = hist['Close'].iloc[-1]
+                            pct_change = ((last_price - first_price) / first_price) * 100
+
+                            # Determine color based on performance
+                            line_color = '#00CC66' if pct_change >= 0 else '#FF4444'
+                            fill_color = 'rgba(0, 204, 102, 0.1)' if pct_change >= 0 else 'rgba(255, 68, 68, 0.1)'
+
+                            # Create figure with candlestick-style enhancements
+                            fig = go.Figure()
+
+                            # Add filled area
+                            fig.add_trace(go.Scatter(
+                                x=hist.index,
+                                y=hist['Close'],
+                                fill='tozeroy',
+                                fillcolor=fill_color,
+                                line=dict(color=line_color, width=3),
+                                name='Price',
+                                hovertemplate='<b>Date:</b> %{x|%Y-%m-%d}<br><b>Price:</b> $%{y:.2f}<extra></extra>'
+                            ))
+
+                            # Add 20-day moving average if enough data
+                            if len(hist) >= 20:
+                                ma20 = hist['Close'].rolling(window=20).mean()
+                                fig.add_trace(go.Scatter(
+                                    x=hist.index,
+                                    y=ma20,
+                                    line=dict(color='rgba(255, 165, 0, 0.8)', width=2, dash='dash'),
+                                    name='20-Day MA',
+                                    hovertemplate='<b>20-Day MA:</b> $%{y:.2f}<extra></extra>'
+                                ))
+
+                            # Update layout for better visuals
+                            fig.update_layout(
+                                title=f"{ticker} - {title_suffix}",
+                                title_font=dict(size=20, color='#1f77b4', family='Arial Black'),
+                                hovermode='x unified',
+                                plot_bgcolor='rgba(240, 240, 240, 0.5)',
+                                paper_bgcolor='white',
+                                xaxis=dict(
+                                    title=dict(text="Date", font=dict(size=14, color='#000000')),
+                                    showgrid=True,
+                                    gridcolor='rgba(200, 200, 200, 0.3)',
+                                    showline=True,
+                                    linewidth=2,
+                                    linecolor='gray',
+                                    tickfont=dict(size=13, color='#000000')
+                                ),
+                                yaxis=dict(
+                                    title=dict(text="Price ($)", font=dict(size=14, color='#000000')),
+                                    showgrid=True,
+                                    gridcolor='rgba(200, 200, 200, 0.3)',
+                                    showline=True,
+                                    linewidth=2,
+                                    linecolor='gray',
+                                    tickfont=dict(size=13, color='#000000')
+                                ),
+                                font=dict(size=12),
+                                showlegend=True,
+                                legend=dict(
+                                    yanchor="top",
+                                    y=0.99,
+                                    xanchor="left",
+                                    x=0.01,
+                                    bgcolor="rgba(255, 255, 255, 0.8)"
+                                )
+                            )
+
+                            st.plotly_chart(fig, use_container_width=True)
+
+                            # Performance summary for this period
+                            if pct_change > 10:
+                                st.success(f"✅ **Strong performance:** Up {pct_change:.1f}% over {title_suffix.lower()}")
+                            elif pct_change > 0:
+                                st.info(f"📈 **Positive return:** Up {pct_change:.1f}% over {title_suffix.lower()}")
+                            elif pct_change > -10:
+                                st.warning(f"📉 **Slight decline:** Down {abs(pct_change):.1f}% over {title_suffix.lower()}")
+                            else:
+                                st.error(f"⚠️ **Significant drop:** Down {abs(pct_change):.1f}% over {title_suffix.lower()}")
+                        except Exception as e:
+                            st.error(f"Error creating chart: {str(e)}")
+                            import traceback
+                            st.code(traceback.format_exc())
+
+                    with timeframe_tab1:
+                        create_enhanced_chart(lookup_ticker, "1mo", "1 Month Performance")
+
+                    with timeframe_tab2:
+                        create_enhanced_chart(lookup_ticker, "6mo", "6 Month Performance")
+
+                    with timeframe_tab3:
+                        create_enhanced_chart(lookup_ticker, "ytd", "Year-to-Date Performance")
+
+                    with timeframe_tab4:
+                        create_enhanced_chart(lookup_ticker, "1y", "1 Year Performance")
+
+                    with timeframe_tab5:
+                        create_enhanced_chart(lookup_ticker, "5y", "5 Year Performance")
+
+            except Exception as e:
+                st.error(f"Error loading data for {lookup_ticker}: {str(e)}")
 
 
 def render_goals_tab():
