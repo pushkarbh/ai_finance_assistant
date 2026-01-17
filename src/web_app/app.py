@@ -315,33 +315,87 @@ def render_chat_tab():
             with st.chat_message(message["role"]):
                 st.markdown(message["content"])
 
+                # Show metadata for assistant messages
+                if message["role"] == "assistant":
+                    metadata = message.get("metadata", {})
+                    if metadata:
+                        sources = metadata.get("sources", [])
+                        agents = metadata.get("agents_used", [])
+
+                        # Show sources
+                        if sources:
+                            st.markdown("")
+                            st.markdown("**📚 Sources:**")
+                            citation_links = []
+                            seen_citations = set()
+
+                            for idx, source in enumerate(sources, 1):
+                                if isinstance(source, dict):
+                                    title = source.get("title", "")
+                                    url = source.get("url")
+                                    citation_key = url if url else title
+
+                                    if citation_key and citation_key not in seen_citations:
+                                        seen_citations.add(citation_key)
+                                        if url:
+                                            citation_links.append(f"[{title}]({url})")
+                                        else:
+                                            citation_links.append(source.get("source", title or f"Source {idx}"))
+                                else:
+                                    source_str = str(source)
+                                    if source_str not in seen_citations:
+                                        seen_citations.add(source_str)
+                                        citation_links.append(source_str)
+
+                            if citation_links:
+                                st.markdown(" • ".join(citation_links))
+
+                        # Show agents used
+                        if agents:
+                            st.caption(f"Agents used: {', '.join(agents)}")
+
+                        # Show educational disclaimer
+                        st.caption("⚠️ *Disclaimer: This is educational information and not financial advice. Always consider your personal financial situation and consult with a professional if needed. You're doing great by seeking knowledge—keep it up!*")
+
     # Show pending action button AFTER chat history (so it appears below messages)
     if st.session_state.get('pending_tab_action'):
         action = st.session_state.pending_tab_action
 
-        st.markdown("---")
+        st.markdown("")
 
-        # Gentle container with border instead of bold blue background
-        st.markdown(f"""
-        <div style="background-color: #f0f7ff;
-                    border: 2px solid #0066cc;
-                    padding: 16px;
-                    border-radius: 8px;
-                    margin: 10px 0;">
-            <p style="color: #0066cc;
-                      font-size: 15px;
-                      font-weight: 500;
-                      margin: 0;
-                      text-align: center;">
-                💡 {action['message']}
-            </p>
-        </div>
+        # Message on first line
+        st.markdown(f"**💡 {action['message']}**")
+
+        # Add custom CSS for dismiss button with pale yellow color
+        st.markdown("""
+        <style>
+        /* Target secondary button (Dismiss) */
+        button[kind="secondary"],
+        button[kind="secondary"][data-testid="baseButton-secondary"],
+        .stButton > button[kind="secondary"] {
+            background: #fff3cd !important;
+            background-color: #fff3cd !important;
+            background-image: none !important;
+            color: #856404 !important;
+            border: 1px solid #ffeaa7 !important;
+        }
+        button[kind="secondary"]:hover,
+        button[kind="secondary"][data-testid="baseButton-secondary"]:hover,
+        .stButton > button[kind="secondary"]:hover {
+            background: #ffeaa7 !important;
+            background-color: #ffeaa7 !important;
+            background-image: none !important;
+            border: 1px solid #ffd93d !important;
+        }
+        </style>
         """, unsafe_allow_html=True)
 
-        col1, col2, col3 = st.columns([1, 2, 1])
-        with col2:
+        # Buttons on second line, left aligned with minimal gap
+        col_button1, col_button2, col_spacer = st.columns([1.5, 1.5, 5], gap="small")
+
+        with col_button1:
             if st.button(
-                f"{action['icon']} {action['button_text']} →",
+                f"{action['icon']} {action['button_text']}",
                 key="persistent_nav_button",
                 type="primary",
                 use_container_width=True
@@ -350,11 +404,101 @@ def render_chat_tab():
                 st.session_state.navigate_to_tab = action['tab_index']
                 st.rerun()
 
-        col_dismiss1, col_dismiss2, col_dismiss3 = st.columns([2, 1, 2])
-        with col_dismiss2:
-            if st.button("✕ Dismiss", key="dismiss_action", use_container_width=True):
+        with col_button2:
+            if st.button("✕ Dismiss", key="dismiss_action", type="secondary", use_container_width=True):
                 st.session_state.pending_tab_action = None
                 st.rerun()
+
+    # Check if there's an unprocessed user message (from example questions)
+    if (st.session_state.chat_history and
+        st.session_state.chat_history[-1]["role"] == "user" and
+        not st.session_state.get('processing_message', False)):
+
+        # Mark as processing to avoid duplicate processing
+        st.session_state.processing_message = True
+
+        last_user_message = st.session_state.chat_history[-1]["content"]
+
+        # Generate response
+        with st.chat_message("assistant"):
+            with st.spinner("Thinking..."):
+                try:
+                    result = process_query(
+                        query=last_user_message,
+                        session_id=st.session_state.session_id,
+                        portfolio=st.session_state.portfolio,
+                        goals=st.session_state.goals
+                    )
+                    response = result.get("response", "I couldn't generate a response. Please try again.")
+
+                    # Collect metadata for this response
+                    agents_used = result.get("agents_used", [])
+                    sources = result.get("sources", [])
+
+                    # Add assistant response with metadata to history
+                    st.session_state.chat_history.append({
+                        "role": "assistant",
+                        "content": response,
+                        "metadata": {
+                            "agents_used": agents_used,
+                            "sources": sources
+                        }
+                    })
+
+                    # Display response
+                    st.markdown(response)
+
+                    # Show inline citations if sources exist
+                    if sources:
+                        st.markdown("")
+                        st.markdown("**📚 Sources:**")
+                        citation_links = []
+                        seen_citations = set()  # Deduplicate citations
+
+                        for idx, source in enumerate(sources, 1):
+                            if isinstance(source, dict):
+                                title = source.get("title", "")
+                                source_name = source.get("source", title or f"Source {idx}")
+                                url = source.get("url")
+
+                                # Create unique key for this citation
+                                citation_key = url if url else title
+
+                                # Only add if not already seen
+                                if citation_key and citation_key not in seen_citations:
+                                    seen_citations.add(citation_key)
+                                    if url:
+                                        citation_links.append(f"[{title}]({url})")
+                                    else:
+                                        citation_links.append(source_name)
+                            else:
+                                source_str = str(source)
+                                if source_str not in seen_citations:
+                                    seen_citations.add(source_str)
+                                    citation_links.append(source_str)
+
+                        if citation_links:
+                            st.markdown(" • ".join(citation_links))
+                    else:
+                        st.caption("💡 No sources retrieved for this response")
+
+                    # Show agents used (for transparency)
+                    if agents_used:
+                        st.caption(f"Agents used: {', '.join(agents_used)}")
+
+                    # Show educational disclaimer
+                    st.caption("⚠️ *Disclaimer: This is educational information and not financial advice. Always consider your personal financial situation and consult with a professional if needed. You're doing great by seeking knowledge—keep it up!*")
+
+                except Exception as e:
+                    st.error(f"Error: {str(e)}")
+                    st.session_state.chat_history.append({
+                        "role": "assistant",
+                        "content": "I encountered an error processing your request. Please try again.",
+                        "metadata": {}
+                    })
+
+        # Clear processing flag (no rerun needed - let response stay displayed inline)
+        st.session_state.processing_message = False
 
     # Chat input
     if prompt := st.chat_input("Ask a financial question..."):
