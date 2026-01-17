@@ -407,30 +407,6 @@ def render_chat_tab():
         # Message on first line
         st.markdown(f"**💡 {action['message']}**")
 
-        # Add custom CSS for dismiss button with pale yellow color
-        st.markdown("""
-        <style>
-        /* Target secondary button (Dismiss) */
-        button[kind="secondary"],
-        button[kind="secondary"][data-testid="baseButton-secondary"],
-        .stButton > button[kind="secondary"] {
-            background: #fff3cd !important;
-            background-color: #fff3cd !important;
-            background-image: none !important;
-            color: #856404 !important;
-            border: 1px solid #ffeaa7 !important;
-        }
-        button[kind="secondary"]:hover,
-        button[kind="secondary"][data-testid="baseButton-secondary"]:hover,
-        .stButton > button[kind="secondary"]:hover {
-            background: #ffeaa7 !important;
-            background-color: #ffeaa7 !important;
-            background-image: none !important;
-            border: 1px solid #ffd93d !important;
-        }
-        </style>
-        """, unsafe_allow_html=True)
-
         # Buttons on second line, left aligned with minimal gap
         col_button1, col_button2, col_spacer = st.columns([1.5, 1.5, 5], gap="small")
 
@@ -446,7 +422,32 @@ def render_chat_tab():
                 st.rerun()
 
         with col_button2:
-            if st.button("✕ Dismiss", key="dismiss_action", type="secondary", use_container_width=True):
+            # Use custom HTML button to avoid CSS conflicts
+            dismiss_clicked = st.button("✕ Dismiss", key="dismiss_action", use_container_width=True)
+
+            # Apply yellow styling only to this specific button using unique key selector
+            st.markdown("""
+            <style>
+            /* Target only the dismiss button by its specific key */
+            button[kind="secondary"][key="dismiss_action"],
+            div[data-testid="column"] > div > div > button:has-text("✕ Dismiss") {
+                background: #fff3cd !important;
+                background-color: #fff3cd !important;
+                background-image: none !important;
+                color: #856404 !important;
+                border: 1px solid #ffeaa7 !important;
+            }
+            button[kind="secondary"][key="dismiss_action"]:hover,
+            div[data-testid="column"] > div > div > button:has-text("✕ Dismiss"):hover {
+                background: #ffeaa7 !important;
+                background-color: #ffeaa7 !important;
+                background-image: none !important;
+                border: 1px solid #ffd93d !important;
+            }
+            </style>
+            """, unsafe_allow_html=True)
+
+            if dismiss_clicked:
                 st.session_state.pending_tab_action = None
                 st.rerun()
 
