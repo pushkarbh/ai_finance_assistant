@@ -17,6 +17,9 @@ import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime
 import uuid
+import time
+import threading
+from contextlib import contextmanager
 
 # Import our modules
 from src.workflow import process_query
@@ -29,6 +32,7 @@ from src.utils.market_data import (
     get_stock_news
 )
 from src.agents import PortfolioAnalysisAgent
+from src.web_app.financial_tips import get_random_tip
 
 
 # Page configuration
@@ -65,6 +69,31 @@ def init_session_state():
         st.session_state.navigate_to_tab = None
     if 'selected_message_idx' not in st.session_state:
         st.session_state.selected_message_idx = None
+
+
+@contextmanager
+def smart_spinner():
+    """
+    Display a financial tip while processing with animated spinner.
+    Use as: with smart_spinner():
+    """
+    # Get a random financial tip to display
+    tip = get_random_tip()
+
+    # Create a placeholder for the status box
+    status_placeholder = st.empty()
+
+    # Show status with tip - st.status has built-in spinner animation
+    with status_placeholder.container():
+        status = st.status("🤔 **Analyzing your question...**", expanded=True, state="running")
+        status.write("**💡 While you wait, here's a financial tip:**")
+        status.info(tip)
+
+    try:
+        yield  # Execute the code block
+    finally:
+        # Remove the status box completely after processing
+        status_placeholder.empty()
 
 
 def format_agent_name(agent_id: str) -> str:
@@ -463,7 +492,7 @@ def render_chat_tab():
 
         # Generate response
         with st.chat_message("assistant"):
-            with st.spinner("Thinking..."):
+            with smart_spinner():
                 try:
                     result = process_query(
                         query=last_user_message,
@@ -554,7 +583,7 @@ def render_chat_tab():
 
         # Generate response
         with st.chat_message("assistant"):
-            with st.spinner("Thinking..."):
+            with smart_spinner():
                 try:
                     result = process_query(
                         query=prompt,
@@ -672,7 +701,7 @@ def render_portfolio_tab():
                 st.dataframe(df)
 
                 if st.button("Analyze Portfolio"):
-                    with st.spinner("Analyzing your portfolio..."):
+                    with smart_spinner():
                         # Parse portfolio
                         agent = PortfolioAnalysisAgent()
                         holdings = agent.parse_portfolio_csv(uploaded_file.getvalue().decode())
@@ -817,7 +846,7 @@ def render_portfolio_tab():
                 st.dataframe(pd.DataFrame(other_data), use_container_width=True, hide_index=True)
 
             if st.button("Analyze Current Portfolio"):
-                with st.spinner("Analyzing..."):
+                with smart_spinner():
                     agent = PortfolioAnalysisAgent()
                     analysis = agent.analyze_portfolio(st.session_state.portfolio)
                     if 'error' not in analysis:
