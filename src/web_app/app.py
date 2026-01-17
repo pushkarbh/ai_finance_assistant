@@ -96,6 +96,255 @@ def smart_spinner():
         status_placeholder.empty()
 
 
+def parse_return(val):
+    """Helper function to parse return values from strings or floats."""
+    if val is None or val == 'N/A':
+        return -999
+    if isinstance(val, float):
+        return val
+    if isinstance(val, str):
+        val = val.strip().replace('%', '')
+        if val == 'N/A' or val == '':
+            return -999
+        try:
+            return float(val)
+        except:
+            return -999
+    return -999
+
+
+@st.cache_data(ttl=1800)  # Cache for 30 minutes
+def load_top_stocks_performance():
+    """Load performance data for top stocks. Cached for 30 minutes."""
+    top_stocks = {
+        'AAPL': 'Apple',
+        'MSFT': 'Microsoft', 
+        'GOOGL': 'Google',
+        'AMZN': 'Amazon',
+        'NVDA': 'Nvidia',
+        'TSLA': 'Tesla',
+        'META': 'Meta',
+        'JPM': 'JPMorgan'
+    }
+    
+    performance_data = []
+    for ticker, name in top_stocks.items():
+        try:
+            returns = calculate_returns(ticker)
+            price_data = get_stock_price(ticker)
+            
+            performance_data.append({
+                'Ticker': ticker,
+                'Company': name,
+                'Price': f"${price_data.get('price', 0):,.2f}",
+                '1 Month': returns.get('1mo', 'N/A'),
+                '6 Months': returns.get('6mo', 'N/A'),
+                'YTD': returns.get('ytd', 'N/A'),
+                '5 Years': returns.get('5y', 'N/A')
+            })
+        except:
+            continue
+    
+    return pd.DataFrame(performance_data) if performance_data else None
+
+
+@st.cache_data(ttl=1800)  # Cache for 30 minutes
+def load_global_indices_performance():
+    """Load performance data for global indices. Cached for 30 minutes."""
+    world_indices = {
+        '^GSPC': 'S&P 500 (US)',
+        '^DJI': 'Dow Jones (US)',
+        '^IXIC': 'Nasdaq (US)',
+        '^FTSE': 'FTSE 100 (UK)',
+        '^GDAXI': 'DAX (Germany)',
+        '^N225': 'Nikkei 225 (Japan)',
+        '^HSI': 'Hang Seng (HK)',
+        '^BSESN': 'Sensex (India)'
+    }
+    
+    indices_data = []
+    for symbol, name in world_indices.items():
+        try:
+            returns = calculate_returns(symbol)
+            price_data = get_stock_price(symbol)
+            
+            indices_data.append({
+                'Index': name,
+                'Level': f"{price_data.get('price', 0):,.2f}",
+                '1 Month': returns.get('1mo', 'N/A'),
+                '6 Months': returns.get('6mo', 'N/A'),
+                'YTD': returns.get('ytd', 'N/A'),
+                '5 Years': returns.get('5y', 'N/A')
+            })
+        except:
+            continue
+    
+    return pd.DataFrame(indices_data) if indices_data else None
+
+
+@st.cache_data(ttl=1800)  # Cache for 30 minutes
+def load_sector_performance():
+    """Load performance data for sectors/industries. Cached for 30 minutes."""
+    sectors_industries = {
+        '💰 Precious Metals': {
+            'GLD': 'Gold',
+            'SLV': 'Silver'
+        },
+        '🏦 Banking & Financial': {
+            'XLF': 'Financial Sector ETF',
+            'JPM': 'JPMorgan Chase',
+            'BAC': 'Bank of America'
+        },
+        '⚡ Energy': {
+            'XLE': 'Energy Sector ETF',
+            'XOM': 'ExxonMobil',
+            'CL=F': 'Crude Oil'
+        },
+        '💻 Technology': {
+            'XLK': 'Tech Sector ETF',
+            'QQQ': 'Nasdaq 100 ETF'
+        },
+        '🏥 Healthcare & Pharma': {
+            'XLV': 'Healthcare Sector ETF',
+            'JNJ': 'Johnson & Johnson',
+            'PFE': 'Pfizer'
+        },
+        '🏗️ Infrastructure': {
+            'XLI': 'Industrial Sector ETF',
+            'CAT': 'Caterpillar',
+            'DE': 'Deere & Co'
+        },
+        '₿ Cryptocurrency': {
+            'BTC-USD': 'Bitcoin',
+            'ETH-USD': 'Ethereum'
+        }
+    }
+    
+    all_sector_data = []
+    for sector_name, assets in sectors_industries.items():
+        for symbol, name in assets.items():
+            try:
+                returns = calculate_returns(symbol)
+                price_data = get_stock_price(symbol)
+                
+                all_sector_data.append({
+                    'Sector': sector_name,
+                    'Asset': name,
+                    'Symbol': symbol,
+                    'Price': f"${price_data.get('price', 0):,.2f}",
+                    '1mo': returns.get('1mo', 'N/A'),
+                    '6mo': returns.get('6mo', 'N/A'),
+                    'ytd': returns.get('ytd', 'N/A'),
+                    '5y': returns.get('5y', 'N/A')
+                })
+            except:
+                continue
+    
+    return (pd.DataFrame(all_sector_data), sectors_industries) if all_sector_data else (None, sectors_industries)
+
+
+@st.cache_data(ttl=1800)  # Cache for 30 minutes
+def load_economic_indicators():
+    """Load key economic indicators. Cached for 30 minutes."""
+    economic_data = []
+    
+    # 1. Inflation (using TIPS ETF as proxy)
+    try:
+        tip_returns = calculate_returns('TIP')
+        tip_ytd = parse_return(tip_returns.get('ytd', 0))
+        status = '🟢 Low' if tip_ytd < 2 else '🟡 Moderate' if tip_ytd < 5 else '🔴 High'
+        economic_data.append({
+            'Indicator': '📈 Inflation Expectations (TIP ETF)',
+            'Value': f"{tip_ytd:+.2f}% YTD",
+            'Significance': 'TIPS performance reflects inflation expectations; Fed targets ~2% inflation',
+            'Status': status
+        })
+    except:
+        pass
+    
+    # 2. Treasury Yields
+    try:
+        tnx_data = get_stock_price('^TNX')
+        economic_data.append({
+            'Indicator': '📈 10-Year Treasury Yield',
+            'Value': f"{tnx_data.get('price', 0):.2f}%",
+            'Significance': 'Benchmark for interest rates; rising yields can pressure stocks',
+            'Status': '🟢 Normal' if tnx_data.get('price', 0) < 5 else '🟡 Elevated'
+        })
+    except:
+        pass
+    
+    # 3. VIX
+    try:
+        vix_data = get_stock_price('^VIX')
+        vix_val = vix_data.get('price', 0)
+        status = '🟢 Low' if vix_val < 15 else '🟡 Moderate' if vix_val < 25 else '🔴 High'
+        economic_data.append({
+            'Indicator': '😰 VIX (Volatility Index)',
+            'Value': f"{vix_val:.2f}",
+            'Significance': 'Market fear gauge; <15=calm, 15-25=normal, >25=fearful',
+            'Status': status
+        })
+    except:
+        pass
+    
+    # 4. US Dollar Index
+    try:
+        dxy_data = get_stock_price('DX-Y.NYB')
+        dxy_returns = calculate_returns('DX-Y.NYB')
+        ytd = parse_return(dxy_returns.get('ytd', 0))
+        status = '🟢 Strengthening' if ytd > 0 else '🔴 Weakening'
+        economic_data.append({
+            'Indicator': '💵 US Dollar Index',
+            'Value': f"{dxy_data.get('price', 0):.2f} ({ytd:+.1f}% YTD)",
+            'Significance': 'Dollar strength affects exports, imports, and inflation',
+            'Status': status
+        })
+    except:
+        pass
+    
+    # 5. Crude Oil
+    try:
+        oil_data = get_stock_price('CL=F')
+        oil_returns = calculate_returns('CL=F')
+        ytd = parse_return(oil_returns.get('ytd', 0))
+        status = '🟢 Stable' if abs(ytd) < 15 else '🟡 Volatile'
+        economic_data.append({
+            'Indicator': '🛢️ Crude Oil (WTI)',
+            'Value': f"${oil_data.get('price', 0):.2f}/barrel ({ytd:+.1f}% YTD)",
+            'Significance': 'Energy costs impact inflation and consumer spending',
+            'Status': status
+        })
+    except:
+        pass
+    
+    # 6. Gold
+    try:
+        gold_data = get_stock_price('GC=F')
+        gold_returns = calculate_returns('GC=F')
+        ytd = parse_return(gold_returns.get('ytd', 0))
+        status = '🟢 Rising' if ytd > 5 else '🔴 Falling' if ytd < -5 else '🟡 Stable'
+        economic_data.append({
+            'Indicator': '🥇 Gold Price',
+            'Value': f"${gold_data.get('price', 0):,.2f}/oz ({ytd:+.1f}% YTD)",
+            'Significance': 'Safe haven asset; rises during uncertainty or inflation fears',
+            'Status': status
+        })
+    except:
+        pass
+    
+    return economic_data
+
+
+@st.cache_data(ttl=1800)  # Cache for 30 minutes
+def load_market_news():
+    """Load latest market news. Cached for 30 minutes."""
+    try:
+        return get_stock_news('^GSPC')  # S&P 500 news
+    except:
+        return []
+
+
 def format_agent_name(agent_id: str) -> str:
     """Convert agent ID to human-readable name."""
     agent_names = {
@@ -1126,230 +1375,187 @@ def render_market_tab():
         except Exception as e:
             st.error(f"Error loading market data: {str(e)}")
 
-    # Enriched Market Overview - Collapsible
+    # Enriched Market Overview - Collapsible with lazy loading
     with st.expander("📊 **Detailed Market Insights** (Top Performers, Trends & News)", expanded=False):
-        st.markdown("### 🏆 Top Stock Performance")
+        # Initialize session state for insights loading
+        if 'market_insights_loaded' not in st.session_state:
+            st.session_state.market_insights_loaded = False
         
-        # Define popular stocks to track
-        top_stocks = {
-            'AAPL': 'Apple',
-            'MSFT': 'Microsoft', 
-            'GOOGL': 'Google',
-            'AMZN': 'Amazon',
-            'NVDA': 'Nvidia',
-            'TSLA': 'Tesla',
-            'META': 'Meta',
-            'JPM': 'JPMorgan'
-        }
+        # Show a button to load insights (this prevents auto-loading)
+        if not st.session_state.market_insights_loaded:
+            st.info("💡 Click below to load detailed market insights (stocks, indices, sectors, economic indicators & news)")
+            st.caption("🔄 Data is cached for 30 minutes for faster subsequent loads")
+            if st.button("🚀 Load Market Insights", key="load_insights_btn"):
+                st.session_state.market_insights_loaded = True
+                st.rerun()
         
-        with st.spinner("Loading top performers..."):
-            try:
-                # Fetch returns for all stocks
-                performance_data = []
-                for ticker, name in top_stocks.items():
-                    try:
-                        returns = calculate_returns(ticker)
-                        price_data = get_stock_price(ticker)
+        if st.session_state.market_insights_loaded:
+            # Add a refresh button
+            col1, col2 = st.columns([6, 1])
+            with col2:
+                if st.button("🔄 Refresh", key="refresh_insights_btn", help="Clear cache and reload data"):
+                    # Clear all cached data
+                    load_top_stocks_performance.clear()
+                    load_global_indices_performance.clear()
+                    load_sector_performance.clear()
+                    load_economic_indicators.clear()
+                    load_market_news.clear()
+                    st.success("✅ Cache cleared! Reloading...")
+                    st.rerun()
+            
+            st.markdown("### 🏆 Top Stock Performance")
+            
+            with st.spinner("Loading top performers..."):
+                try:
+                    # Use cached function
+                    df = load_top_stocks_performance()
+                    
+                    if df is not None:
+                        # Display in tabs for different time periods
+                        tab1m, tab6m, tabytd, tab5y = st.tabs(["📅 1 Month", "📅 6 Months", "📅 YTD", "📅 5 Years"])
                         
-                        performance_data.append({
-                            'Ticker': ticker,
-                            'Company': name,
-                            'Price': f"${price_data.get('price', 0):.2f}",
-                            '1 Month': returns.get('1mo', 'N/A'),
-                            '6 Months': returns.get('6mo', 'N/A'),
-                            'YTD': returns.get('ytd', 'N/A'),
-                            '5 Years': returns.get('5y', 'N/A')
-                        })
-                    except:
-                        continue
+                        with tab1m:
+                            # Sort by 1 month performance
+                            df_sorted = df.copy()
+                            df_sorted['1mo_val'] = df_sorted['1 Month'].apply(parse_return)
+                            df_sorted = df_sorted.sort_values('1mo_val', ascending=False)
+                            
+                            # Top 3 and chart
+                            col1, col2 = st.columns([1, 2])
+                            with col1:
+                                st.markdown("**Top 3 Performers:**")
+                                for idx, row in df_sorted.head(3).iterrows():
+                                    perf = row['1 Month']
+                                    if perf != 'N/A':
+                                        val = parse_return(perf)
+                                        color = 'green' if val > 0 else 'red'
+                                        display_perf = f"{val:.2f}" if val != -999 else perf
+                                        st.markdown(f"**{row['Company']}** ({row['Ticker']}): <span style='color:{color}'>{display_perf}%</span>", unsafe_allow_html=True)
+                            
+                            with col2:
+                                # Bar chart
+                                chart_df = df_sorted[df_sorted['1mo_val'] != -999].copy()
+                                fig = px.bar(
+                                    chart_df,
+                                    x='Ticker',
+                                    y='1mo_val',
+                                    title='1 Month Performance (%)',
+                                    color='1mo_val',
+                                    color_continuous_scale='RdYlGn',
+                                    labels={'1mo_val': 'Return (%)'}
+                                )
+                                fig.update_layout(showlegend=False, height=300)
+                                st.plotly_chart(fig, use_container_width=True)
+                        
+                        with tab6m:
+                            df_sorted = df.copy()
+                            df_sorted['6mo_val'] = df_sorted['6 Months'].apply(parse_return)
+                            df_sorted = df_sorted.sort_values('6mo_val', ascending=False)
+                            
+                            col1, col2 = st.columns([1, 2])
+                            with col1:
+                                st.markdown("**Top 3 Performers:**")
+                                for idx, row in df_sorted.head(3).iterrows():
+                                    perf = row['6 Months']
+                                    if perf != 'N/A':
+                                        val = parse_return(perf)
+                                        color = 'green' if val > 0 else 'red'
+                                        display_perf = f"{val:.2f}" if val != -999 else perf
+                                        st.markdown(f"**{row['Company']}** ({row['Ticker']}): <span style='color:{color}'>{display_perf}%</span>", unsafe_allow_html=True)
+                            
+                            with col2:
+                                chart_df = df_sorted[df_sorted['6mo_val'] != -999].copy()
+                                fig = px.bar(
+                                    chart_df,
+                                    x='Ticker',
+                                    y='6mo_val',
+                                    title='6 Month Performance (%)',
+                                    color='6mo_val',
+                                    color_continuous_scale='RdYlGn',
+                                    labels={'6mo_val': 'Return (%)'}
+                                )
+                                fig.update_layout(showlegend=False, height=300)
+                                st.plotly_chart(fig, use_container_width=True)
+                        
+                        with tabytd:
+                            df_sorted = df.copy()
+                            df_sorted['ytd_val'] = df_sorted['YTD'].apply(parse_return)
+                            df_sorted = df_sorted.sort_values('ytd_val', ascending=False)
+                            
+                            col1, col2 = st.columns([1, 2])
+                            with col1:
+                                st.markdown("**Top 3 Performers:**")
+                                for idx, row in df_sorted.head(3).iterrows():
+                                    perf = row['YTD']
+                                    if perf != 'N/A':
+                                        val = parse_return(perf)
+                                        color = 'green' if val > 0 else 'red'
+                                        display_perf = f"{val:.2f}" if val != -999 else perf
+                                        st.markdown(f"**{row['Company']}** ({row['Ticker']}): <span style='color:{color}'>{display_perf}%</span>", unsafe_allow_html=True)
+                            
+                            with col2:
+                                chart_df = df_sorted[df_sorted['ytd_val'] != -999].copy()
+                                fig = px.bar(
+                                    chart_df,
+                                    x='Ticker',
+                                    y='ytd_val',
+                                    title='YTD Performance (%)',
+                                    color='ytd_val',
+                                    color_continuous_scale='RdYlGn',
+                                    labels={'ytd_val': 'Return (%)'}
+                                )
+                                fig.update_layout(showlegend=False, height=300)
+                                st.plotly_chart(fig, use_container_width=True)
+                        
+                        with tab5y:
+                            df_sorted = df.copy()
+                            df_sorted['5y_val'] = df_sorted['5 Years'].apply(parse_return)
+                            df_sorted = df_sorted.sort_values('5y_val', ascending=False)
+                            
+                            col1, col2 = st.columns([1, 2])
+                            with col1:
+                                st.markdown("**Top 3 Performers:**")
+                                for idx, row in df_sorted.head(3).iterrows():
+                                    perf = row['5 Years']
+                                    if perf != 'N/A':
+                                        val = parse_return(perf)
+                                        color = 'green' if val > 0 else 'red'
+                                        display_perf = f"{val:.2f}" if val != -999 else perf
+                                        st.markdown(f"**{row['Company']}** ({row['Ticker']}): <span style='color:{color}'>{display_perf}%</span>", unsafe_allow_html=True)
+                            
+                            with col2:
+                                chart_df = df_sorted[df_sorted['5y_val'] != -999].copy()
+                                fig = px.bar(
+                                    chart_df,
+                                    x='Ticker',
+                                    y='5y_val',
+                                    title='5 Year Performance (%)',
+                                    color='5y_val',
+                                    color_continuous_scale='RdYlGn',
+                                    labels={'5y_val': 'Return (%)'}
+                                )
+                                fig.update_layout(showlegend=False, height=300)
+                                st.plotly_chart(fig, use_container_width=True)
+                        
+                        # Full comparison table
+                        st.markdown("---")
+                        st.markdown("**📋 Complete Performance Table:**")
+                        st.dataframe(df[['Ticker', 'Company', 'Price', '1 Month', '6 Months', 'YTD', '5 Years']], use_container_width=True, hide_index=True)
                 
-                if performance_data:
-                    df = pd.DataFrame(performance_data)
+                except Exception as e:
+                    st.error(f"Error loading performance data: {str(e)}")
+            
+            st.markdown("---")
+            st.markdown("### 🌍 Global Market Indices")
+            
+            with st.spinner("Loading global indices..."):
+                try:
+                    # Use cached function
+                    df_indices = load_global_indices_performance()
                     
-                    # Helper function to convert return values to float
-                    def parse_return(val):
-                        if val == 'N/A' or val is None:
-                            return -999
-                        if isinstance(val, (int, float)):
-                            return float(val)
-                        if isinstance(val, str):
-                            return float(val.strip('%'))
-                        return -999
-                    
-                    # Display in tabs for different time periods
-                    tab1m, tab6m, tabytd, tab5y = st.tabs(["📅 1 Month", "📅 6 Months", "📅 YTD", "📅 5 Years"])
-                    
-                    with tab1m:
-                        # Sort by 1 month performance
-                        df_sorted = df.copy()
-                        df_sorted['1mo_val'] = df_sorted['1 Month'].apply(parse_return)
-                        df_sorted = df_sorted.sort_values('1mo_val', ascending=False)
-                        
-                        # Top 3 and chart
-                        col1, col2 = st.columns([1, 2])
-                        with col1:
-                            st.markdown("**Top 3 Performers:**")
-                            for idx, row in df_sorted.head(3).iterrows():
-                                perf = row['1 Month']
-                                if perf != 'N/A':
-                                    val = parse_return(perf)
-                                    color = 'green' if val > 0 else 'red'
-                                    display_perf = f"{val:.2f}" if val != -999 else perf
-                                    st.markdown(f"**{row['Company']}** ({row['Ticker']}): <span style='color:{color}'>{display_perf}%</span>", unsafe_allow_html=True)
-                        
-                        with col2:
-                            # Bar chart
-                            chart_df = df_sorted[df_sorted['1mo_val'] != -999].copy()
-                            fig = px.bar(
-                                chart_df,
-                                x='Ticker',
-                                y='1mo_val',
-                                title='1 Month Performance (%)',
-                                color='1mo_val',
-                                color_continuous_scale='RdYlGn',
-                                labels={'1mo_val': 'Return (%)'}
-                            )
-                            fig.update_layout(showlegend=False, height=300)
-                            st.plotly_chart(fig, use_container_width=True)
-                    
-                    with tab6m:
-                        df_sorted = df.copy()
-                        df_sorted['6mo_val'] = df_sorted['6 Months'].apply(parse_return)
-                        df_sorted = df_sorted.sort_values('6mo_val', ascending=False)
-                        
-                        col1, col2 = st.columns([1, 2])
-                        with col1:
-                            st.markdown("**Top 3 Performers:**")
-                            for idx, row in df_sorted.head(3).iterrows():
-                                perf = row['6 Months']
-                                if perf != 'N/A':
-                                    val = parse_return(perf)
-                                    color = 'green' if val > 0 else 'red'
-                                    display_perf = f"{val:.2f}" if val != -999 else perf
-                                    st.markdown(f"**{row['Company']}** ({row['Ticker']}): <span style='color:{color}'>{display_perf}%</span>", unsafe_allow_html=True)
-                        
-                        with col2:
-                            chart_df = df_sorted[df_sorted['6mo_val'] != -999].copy()
-                            fig = px.bar(
-                                chart_df,
-                                x='Ticker',
-                                y='6mo_val',
-                                title='6 Month Performance (%)',
-                                color='6mo_val',
-                                color_continuous_scale='RdYlGn',
-                                labels={'6mo_val': 'Return (%)'}
-                            )
-                            fig.update_layout(showlegend=False, height=300)
-                            st.plotly_chart(fig, use_container_width=True)
-                    
-                    with tabytd:
-                        df_sorted = df.copy()
-                        df_sorted['ytd_val'] = df_sorted['YTD'].apply(parse_return)
-                        df_sorted = df_sorted.sort_values('ytd_val', ascending=False)
-                        
-                        col1, col2 = st.columns([1, 2])
-                        with col1:
-                            st.markdown("**Top 3 Performers:**")
-                            for idx, row in df_sorted.head(3).iterrows():
-                                perf = row['YTD']
-                                if perf != 'N/A':
-                                    val = parse_return(perf)
-                                    color = 'green' if val > 0 else 'red'
-                                    display_perf = f"{val:.2f}" if val != -999 else perf
-                                    st.markdown(f"**{row['Company']}** ({row['Ticker']}): <span style='color:{color}'>{display_perf}%</span>", unsafe_allow_html=True)
-                        
-                        with col2:
-                            chart_df = df_sorted[df_sorted['ytd_val'] != -999].copy()
-                            fig = px.bar(
-                                chart_df,
-                                x='Ticker',
-                                y='ytd_val',
-                                title='YTD Performance (%)',
-                                color='ytd_val',
-                                color_continuous_scale='RdYlGn',
-                                labels={'ytd_val': 'Return (%)'}
-                            )
-                            fig.update_layout(showlegend=False, height=300)
-                            st.plotly_chart(fig, use_container_width=True)
-                    
-                    with tab5y:
-                        df_sorted = df.copy()
-                        df_sorted['5y_val'] = df_sorted['5 Years'].apply(parse_return)
-                        df_sorted = df_sorted.sort_values('5y_val', ascending=False)
-                        
-                        col1, col2 = st.columns([1, 2])
-                        with col1:
-                            st.markdown("**Top 3 Performers:**")
-                            for idx, row in df_sorted.head(3).iterrows():
-                                perf = row['5 Years']
-                                if perf != 'N/A':
-                                    val = parse_return(perf)
-                                    color = 'green' if val > 0 else 'red'
-                                    display_perf = f"{val:.2f}" if val != -999 else perf
-                                    st.markdown(f"**{row['Company']}** ({row['Ticker']}): <span style='color:{color}'>{display_perf}%</span>", unsafe_allow_html=True)
-                        
-                        with col2:
-                            chart_df = df_sorted[df_sorted['5y_val'] != -999].copy()
-                            fig = px.bar(
-                                chart_df,
-                                x='Ticker',
-                                y='5y_val',
-                                title='5 Year Performance (%)',
-                                color='5y_val',
-                                color_continuous_scale='RdYlGn',
-                                labels={'5y_val': 'Return (%)'}
-                            )
-                            fig.update_layout(showlegend=False, height=300)
-                            st.plotly_chart(fig, use_container_width=True)
-                    
-                    # Full comparison table
-                    st.markdown("---")
-                    st.markdown("**📋 Complete Performance Table:**")
-                    st.dataframe(df[['Ticker', 'Company', 'Price', '1 Month', '6 Months', 'YTD', '5 Years']], use_container_width=True, hide_index=True)
-                
-            except Exception as e:
-                st.error(f"Error loading performance data: {str(e)}")
-        
-        st.markdown("---")
-        st.markdown("### 🌍 Global Market Indices")
-        
-        # Define major world indices
-        world_indices = {
-            '^GSPC': 'S&P 500 (US)',
-            '^DJI': 'Dow Jones (US)',
-            '^IXIC': 'Nasdaq (US)',
-            '^FTSE': 'FTSE 100 (UK)',
-            '^GDAXI': 'DAX (Germany)',
-            '^N225': 'Nikkei 225 (Japan)',
-            '^HSI': 'Hang Seng (Hong Kong)',
-            '^BSESN': 'Sensex (India)'
-        }
-        
-        with st.spinner("Loading global indices..."):
-            try:
-                # Fetch returns for all indices
-                indices_data = []
-                for symbol, name in world_indices.items():
-                    try:
-                        returns = calculate_returns(symbol)
-                        price_data = get_stock_price(symbol)
-                        
-                        indices_data.append({
-                            'Index': name,
-                            'Level': f"{price_data.get('price', 0):,.2f}",
-                            '1 Month': returns.get('1mo', 'N/A'),
-                            '6 Months': returns.get('6mo', 'N/A'),
-                            'YTD': returns.get('ytd', 'N/A'),
-                            '5 Years': returns.get('5y', 'N/A')
-                        })
-                    except:
-                        continue
-                
-                if indices_data:
-                    df_indices = pd.DataFrame(indices_data)
-                    
-                    # Display in tabs for different time periods
-                    idx_tab1m, idx_tab6m, idx_tabytd, idx_tab5y = st.tabs(["📅 1 Month", "📅 6 Months", "📅 YTD", "📅 5 Years"])
+                    if df_indices is not None:
+                        # Display in tabs for different time periods
+                        idx_tab1m, idx_tab6m, idx_tabytd, idx_tab5y = st.tabs(["📅 1 Month", "📅 6 Months", "📅 YTD", "📅 5 Years"])
                     
                     with idx_tab1m:
                         df_sorted = df_indices.copy()
@@ -1524,285 +1730,143 @@ def render_market_tab():
                     st.markdown("**📋 Complete Indices Table:**")
                     st.dataframe(df_indices[['Index', 'Level', '1 Month', '6 Months', 'YTD', '5 Years']], use_container_width=True, hide_index=True)
                 
-            except Exception as e:
-                st.error(f"Error loading indices data: {str(e)}")
-        
-        st.markdown("---")
-        st.markdown("### 🏭 US Sector & Industry Performance")
-        st.caption("Track major sectors and industries to get a pulse on the economy")
-        
-        # Define sector/industry ETFs and assets
-        sectors_industries = {
-            '💰 Precious Metals': {
-                'GLD': 'Gold',
-                'SLV': 'Silver'
-            },
-            '🏦 Banking & Financial': {
-                'XLF': 'Financial Sector ETF',
-                'JPM': 'JPMorgan Chase',
-                'BAC': 'Bank of America'
-            },
-            '⚡ Energy': {
-                'XLE': 'Energy Sector ETF',
-                'XOM': 'ExxonMobil',
-                'CL=F': 'Crude Oil'
-            },
-            '💻 Technology': {
-                'XLK': 'Tech Sector ETF',
-                'QQQ': 'Nasdaq 100 ETF'
-            },
-            '🏥 Healthcare & Pharma': {
-                'XLV': 'Healthcare Sector ETF',
-                'JNJ': 'Johnson & Johnson',
-                'PFE': 'Pfizer'
-            },
-            '🏗️ Infrastructure': {
-                'XLI': 'Industrial Sector ETF',
-                'CAT': 'Caterpillar',
-                'DE': 'Deere & Co'
-            },
-            '₿ Cryptocurrency': {
-                'BTC-USD': 'Bitcoin',
-                'ETH-USD': 'Ethereum'
-            }
-        }
-        
-        with st.spinner("Loading sector performance..."):
-            try:
-                # Collect data for all sectors
-                all_sector_data = []
-                
-                for sector_name, assets in sectors_industries.items():
-                    for symbol, name in assets.items():
-                        try:
-                            returns = calculate_returns(symbol)
-                            price_data = get_stock_price(symbol)
-                            
-                            all_sector_data.append({
-                                'Sector': sector_name,
-                                'Asset': name,
-                                'Symbol': symbol,
-                                'Price': f"${price_data.get('price', 0):,.2f}",
-                                '1mo': returns.get('1mo', 'N/A'),
-                                '6mo': returns.get('6mo', 'N/A'),
-                                'ytd': returns.get('ytd', 'N/A'),
-                                '5y': returns.get('5y', 'N/A')
-                            })
-                        except:
-                            continue
-                
-                if all_sector_data:
-                    df_sectors = pd.DataFrame(all_sector_data)
+                except Exception as e:
+                    st.error(f"Error loading indices data: {str(e)}")
+            
+            st.markdown("---")
+            st.markdown("### 🏭 US Sector & Industry Performance")
+            st.caption("Track major sectors and industries to get a pulse on the economy")
+            
+            with st.spinner("Loading sector performance..."):
+                try:
+                    # Use cached function
+                    df_sectors, sectors_industries = load_sector_performance()
                     
-                    # Create tabbed visualization for different time periods
-                    st.markdown("**📊 Sector Performance Across Time Periods:**")
-                    
-                    sector_tabs = st.tabs(["📅 1 Month", "📅 6 Months", "📅 YTD", "📅 5 Years"])
-                    
-                    time_periods = [
-                        ('1mo', '1 Month', sector_tabs[0]),
-                        ('6mo', '6 Months', sector_tabs[1]),
-                        ('ytd', 'YTD', sector_tabs[2]),
-                        ('5y', '5 Year', sector_tabs[3])
-                    ]
-                    
-                    for period_key, period_name, tab in time_periods:
-                        with tab:
-                            # Prepare data for this period
-                            period_data = []
-                            for sector_name in sectors_industries.keys():
-                                sector_df = df_sectors[df_sectors['Sector'] == sector_name].copy()
-                                if not sector_df.empty:
-                                    sector_df[f'{period_key}_val'] = sector_df[period_key].apply(parse_return)
-                                    avg_return = sector_df[f'{period_key}_val'][sector_df[f'{period_key}_val'] != -999].mean()
-                                    if not pd.isna(avg_return):
-                                        period_data.append({
-                                            'Sector': sector_name,
-                                            'Return (%)': avg_return
-                                        })
-                            
-                            if period_data:
-                                period_df = pd.DataFrame(period_data).sort_values('Return (%)', ascending=False)
+                    if df_sectors is not None:
+                        # Create tabbed visualization for different time periods
+                        st.markdown("**📊 Sector Performance Across Time Periods:**")
+                        
+                        sector_tabs = st.tabs(["📅 1 Month", "📅 6 Months", "📅 YTD", "📅 5 Years"])
+                        
+                        time_periods = [
+                            ('1mo', '1 Month', sector_tabs[0]),
+                            ('6mo', '6 Months', sector_tabs[1]),
+                            ('ytd', 'YTD', sector_tabs[2]),
+                            ('5y', '5 Year', sector_tabs[3])
+                        ]
+                        
+                        for period_key, period_name, tab in time_periods:
+                            with tab:
+                                # Prepare data for this period
+                                period_data = []
+                                for sector_name in sectors_industries.keys():
+                                    sector_df = df_sectors[df_sectors['Sector'] == sector_name].copy()
+                                    if not sector_df.empty:
+                                        sector_df[f'{period_key}_val'] = sector_df[period_key].apply(parse_return)
+                                        avg_return = sector_df[f'{period_key}_val'][sector_df[f'{period_key}_val'] != -999].mean()
+                                        if not pd.isna(avg_return):
+                                            period_data.append({
+                                                'Sector': sector_name,
+                                                'Return (%)': avg_return
+                                            })
                                 
-                                # Create horizontal bar chart
-                                fig = go.Figure(data=[
-                                    go.Bar(
-                                        y=period_df['Sector'],
-                                        x=period_df['Return (%)'],
-                                        orientation='h',
-                                        marker=dict(
-                                            color=period_df['Return (%)'],
-                                            colorscale='RdYlGn',
-                                            line=dict(color='#333', width=1),
-                                            colorbar=dict(title="Return %")
-                                        ),
-                                        text=period_df['Return (%)'].apply(lambda x: f"{x:.1f}%"),
-                                        textposition='outside'
+                                if period_data:
+                                    period_df = pd.DataFrame(period_data).sort_values('Return (%)', ascending=False)
+                                    
+                                    # Create horizontal bar chart
+                                    fig = go.Figure(data=[
+                                        go.Bar(
+                                            y=period_df['Sector'],
+                                            x=period_df['Return (%)'],
+                                            orientation='h',
+                                            marker=dict(
+                                                color=period_df['Return (%)'],
+                                                colorscale='RdYlGn',
+                                                line=dict(color='#333', width=1),
+                                                colorbar=dict(title="Return %")
+                                            ),
+                                            text=period_df['Return (%)'].apply(lambda x: f"{x:.1f}%"),
+                                            textposition='outside'
+                                        )
+                                    ])
+                                    fig.update_layout(
+                                        title=f'Average {period_name} Performance by Sector/Industry',
+                                        showlegend=False,
+                                        height=400,
+                                        xaxis_title='Return (%)',
+                                        plot_bgcolor='rgba(0,0,0,0)',
+                                        paper_bgcolor='rgba(0,0,0,0)',
+                                        margin=dict(l=200)
                                     )
-                                ])
-                                fig.update_layout(
-                                    title=f'Average {period_name} Performance by Sector/Industry',
-                                    showlegend=False,
-                                    height=400,
-                                    xaxis_title='Return (%)',
-                                    plot_bgcolor='rgba(0,0,0,0)',
-                                    paper_bgcolor='rgba(0,0,0,0)',
-                                    margin=dict(l=200)
-                                )
-                                st.plotly_chart(fig, use_container_width=True)
-                            else:
-                                st.warning(f"No data available for {period_name}")
-                    
-                    # Detailed table
-                    st.markdown("**📋 Detailed Sector Breakdown:**")
-                    st.dataframe(
-                        df_sectors[['Sector', 'Asset', 'Price', '1mo', '6mo', 'ytd', '5y']], 
+                                    st.plotly_chart(fig, use_container_width=True)
+                                else:
+                                    st.warning(f"No data available for {period_name}")
+                        
+                        # Detailed table
+                        st.markdown("**📋 Detailed Sector Breakdown:**")
+                        st.dataframe(
+                            df_sectors[['Sector', 'Asset', 'Price', '1mo', '6mo', 'ytd', '5y']], 
                         use_container_width=True, 
                         hide_index=True
                     )
                     
-            except Exception as e:
-                st.error(f"Error loading sector data: {str(e)}")
-        
-        st.markdown("---")
-        st.markdown("### 📊 Key Economic Indicators")
-        st.caption("What economists watch to gauge economic health")
-        
-        with st.spinner("Loading economic indicators..."):
-            try:
-                economic_data = []
-                
-                # 1. Inflation (using TIPS ETF as proxy)
+                except Exception as e:
+                    st.error(f"Error loading sector data: {str(e)}")
+            
+            st.markdown("---")
+            st.markdown("### 📊 Key Economic Indicators")
+            st.caption("What economists watch to gauge economic health")
+            
+            with st.spinner("Loading economic indicators..."):
                 try:
-                    tip_returns = calculate_returns('TIP')  # Treasury Inflation-Protected Securities
-                    tip_ytd = parse_return(tip_returns.get('ytd', 0))
-                    # Rising TIP prices suggest inflation expectations are increasing
-                    status = '🟢 Low' if tip_ytd < 2 else '🟡 Moderate' if tip_ytd < 5 else '🔴 High'
-                    economic_data.append({
-                        'Indicator': '📈 Inflation Expectations (TIP ETF)',
-                        'Value': f"{tip_ytd:+.2f}% YTD",
-                        'Significance': 'TIPS performance reflects inflation expectations; Fed targets ~2% inflation',
-                        'Status': status
-                    })
-                except:
-                    pass
-                
-                # 2. Treasury Yields (Bond market)
-                try:
-                    tnx_data = get_stock_price('^TNX')  # 10-Year Treasury
-                    economic_data.append({
-                        'Indicator': '📈 10-Year Treasury Yield',
-                        'Value': f"{tnx_data.get('price', 0):.2f}%",
-                        'Significance': 'Benchmark for interest rates; rising yields can pressure stocks',
-                        'Status': '🟢 Normal' if tnx_data.get('price', 0) < 5 else '🟡 Elevated'
-                    })
-                except:
-                    pass
-                
-                # 3. VIX (Volatility Index - "Fear Gauge")
-                try:
-                    vix_data = get_stock_price('^VIX')
-                    vix_val = vix_data.get('price', 0)
-                    status = '🟢 Low' if vix_val < 15 else '🟡 Moderate' if vix_val < 25 else '🔴 High'
-                    economic_data.append({
-                        'Indicator': '😰 VIX (Volatility Index)',
-                        'Value': f"{vix_val:.2f}",
-                        'Significance': 'Market fear gauge; <15=calm, 15-25=normal, >25=fearful',
-                        'Status': status
-                    })
-                except:
-                    pass
-                
-                # 4. US Dollar Index
-                try:
-                    dxy_data = get_stock_price('DX-Y.NYB')
-                    dxy_returns = calculate_returns('DX-Y.NYB')
-                    ytd = parse_return(dxy_returns.get('ytd', 0))
-                    status = '🟢 Strengthening' if ytd > 0 else '🔴 Weakening'
-                    economic_data.append({
-                        'Indicator': '💵 US Dollar Index',
-                        'Value': f"{dxy_data.get('price', 0):.2f} ({ytd:+.1f}% YTD)",
-                        'Significance': 'Dollar strength affects exports, imports, and inflation',
-                        'Status': status
-                    })
-                except:
-                    pass
-                
-                # 5. Crude Oil Prices
-                try:
-                    oil_data = get_stock_price('CL=F')
-                    oil_returns = calculate_returns('CL=F')
-                    ytd = parse_return(oil_returns.get('ytd', 0))
-                    status = '🟢 Stable' if abs(ytd) < 15 else '🟡 Volatile'
-                    economic_data.append({
-                        'Indicator': '🛢️ Crude Oil (WTI)',
-                        'Value': f"${oil_data.get('price', 0):.2f}/barrel ({ytd:+.1f}% YTD)",
-                        'Significance': 'Energy costs impact inflation and consumer spending',
-                        'Status': status
-                    })
-                except:
-                    pass
-                
-                # 6. Gold Prices (Inflation hedge)
-                try:
-                    gold_data = get_stock_price('GC=F')
-                    gold_returns = calculate_returns('GC=F')
-                    ytd = parse_return(gold_returns.get('ytd', 0))
-                    status = '🟢 Rising' if ytd > 5 else '🔴 Falling' if ytd < -5 else '🟡 Stable'
-                    economic_data.append({
-                        'Indicator': '🥇 Gold Price',
-                        'Value': f"${gold_data.get('price', 0):,.2f}/oz ({ytd:+.1f}% YTD)",
-                        'Significance': 'Safe haven asset; rises during uncertainty or inflation fears',
-                        'Status': status
-                    })
-                except:
-                    pass
-                
-                if economic_data:
-                    # Display in cards
-                    for indicator in economic_data:
-                        with st.container():
-                            col1, col2, col3 = st.columns([2, 3, 1])
-                            with col1:
-                                st.markdown(f"**{indicator['Indicator']}**")
-                            with col2:
-                                st.markdown(f"{indicator['Value']}")
-                                st.caption(indicator['Significance'])
-                            with col3:
-                                st.markdown(indicator['Status'])
-                            st.markdown("")
+                    # Use cached function
+                    economic_data = load_economic_indicators()
                     
-                    # Add note about inflation
-                    st.info("**💡 Note on Inflation:** CPI (Consumer Price Index) data is released monthly by the Bureau of Labor Statistics. Current inflation trends can be tracked through commodity prices, Treasury yields, and the Fed's statements. Target rate: ~2%")
-                else:
-                    st.warning("Unable to load economic indicators at this time")
+                    if economic_data:
+                        # Display in cards
+                        for indicator in economic_data:
+                            with st.container():
+                                col1, col2, col3 = st.columns([2, 3, 1])
+                                with col1:
+                                    st.markdown(f"**{indicator['Indicator']}**")
+                                with col2:
+                                    st.markdown(f"{indicator['Value']}")
+                                    st.caption(indicator['Significance'])
+                                with col3:
+                                    st.markdown(indicator['Status'])
+                                    st.markdown("")
+                        
+                        # Add note about inflation
+                        st.info("**💡 Note on Inflation:** CPI (Consumer Price Index) data is released monthly by the Bureau of Labor Statistics. Current inflation trends can be tracked through commodity prices, Treasury yields, and the Fed's statements. Target rate: ~2%")
+                    else:
+                        st.warning("Unable to load economic indicators at this time")
+                except Exception as e:
+                    st.error(f"Error loading economic indicators: {str(e)}")
+            
+            st.markdown("---")
+            st.markdown("### 📰 Latest Market News")
+            
+            # Get news from a major index or general market
+            with st.spinner("Loading latest news..."):
+                try:
+                    # Use cached function
+                    news_items = load_market_news()
                     
-            except Exception as e:
-                st.error(f"Error loading economic indicators: {str(e)}")
-        
-        st.markdown("---")
-        st.markdown("### 📰 Latest Market News")
-        
-        # Get news from a major index or general market
-        with st.spinner("Loading latest news..."):
-            try:
-                news_items = get_stock_news('^GSPC')  # S&P 500 news as market proxy
-                
-                if news_items:
-                    # Display top 5 news items in a clean format
-                    for idx, item in enumerate(news_items[:5], 1):
-                        with st.container():
-                            col1, col2 = st.columns([4, 1])
-                            with col1:
-                                st.markdown(f"**{idx}. {item['title']}**")
-                                st.caption(f"🏢 {item['publisher']} • 🕒 {item.get('published', 'Recently')}")
-                            with col2:
-                                st.markdown(f"[Read →]({item['link']})")
-                            st.markdown("")
-                else:
-                    st.info("No market news available at the moment")
-            except Exception as e:
-                st.warning(f"Unable to load news: {str(e)}")
+                    if news_items:
+                        # Display top 5 news items in a clean format
+                        for idx, item in enumerate(news_items[:5], 1):
+                            with st.container():
+                                col1, col2 = st.columns([4, 1])
+                                with col1:
+                                    st.markdown(f"**{idx}. {item['title']}**")
+                                    st.caption(f"🏢 {item['publisher']} • 🕒 {item.get('published', 'Recently')}")
+                                with col2:
+                                    st.markdown(f"[Read →]({item['link']})")
+                                st.markdown("")
+                    else:
+                        st.info("No market news available at the moment")
+                except Exception as e:
+                    st.warning(f"Unable to load news: {str(e)}")
 
     st.markdown("---")
 
