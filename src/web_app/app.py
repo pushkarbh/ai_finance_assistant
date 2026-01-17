@@ -5,7 +5,7 @@ Provides a multi-tab interface for chat, portfolio analysis, market data, and go
 
 import sys
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 
 # Add project root to path for imports
 project_root = Path(__file__).parent.parent.parent
@@ -693,29 +693,127 @@ def render_portfolio_tab():
         st.markdown("---")
         st.subheader("Or Enter Manually")
 
-        with st.form("manual_portfolio"):
-            ticker = st.text_input("Ticker Symbol (e.g., AAPL)")
-            shares = st.number_input("Number of Shares", min_value=0.0, step=1.0)
-            price = st.number_input("Purchase Price (optional)", min_value=0.0, step=1.0)
+        # Investment type selector
+        inv_type = st.radio(
+            "Investment Type",
+            ["Stock/ETF", "Bond", "Cash/Savings", "CD", "Other"],
+            horizontal=True,
+            key="manual_type"
+        )
 
-            if st.form_submit_button("Add Holding"):
-                if ticker and shares > 0:
-                    if st.session_state.portfolio is None:
-                        st.session_state.portfolio = {'holdings': []}
+        if inv_type == "Stock/ETF":
+            with st.form("manual_stock"):
+                ticker = st.text_input("Ticker Symbol (e.g., AAPL)")
+                shares = st.number_input("Number of Shares", min_value=0.0, step=1.0)
+                price = st.number_input("Purchase Price (optional)", min_value=0.0, step=1.0)
 
-                    st.session_state.portfolio['holdings'].append({
-                        'ticker': ticker.upper(),
-                        'shares': shares,
-                        'purchase_price': price if price > 0 else None
-                    })
-                    st.success(f"Added {shares} shares of {ticker.upper()}")
-                    st.rerun()
+                if st.form_submit_button("Add Stock"):
+                    if ticker and shares > 0:
+                        if st.session_state.portfolio is None:
+                            st.session_state.portfolio = {'holdings': []}
+
+                        new_holding = {
+                            'type': 'stock',
+                            'ticker': ticker.upper(),
+                            'shares': shares
+                        }
+                        if price > 0:
+                            new_holding['purchase_price'] = price
+
+                        st.session_state.portfolio['holdings'].append(new_holding)
+                        st.success(f"Added {shares} shares of {ticker.upper()}")
+                        st.rerun()
+        else:
+            # Handle bonds, cash, CDs, other
+            type_map = {
+                "Bond": ("bond", "Bonds", "e.g., Treasury, Corporate, Municipal"),
+                "Cash/Savings": ("cash", "Cash", "e.g., HYSA, Checking, Savings"),
+                "CD": ("cd", "CD", "e.g., 1-year CD, 5-year CD"),
+                "Other": ("other", "Other Investment", "e.g., Real Estate, Crypto")
+            }
+
+            inv_key, default_name, placeholder = type_map[inv_type]
+
+            with st.form(f"manual_{inv_key}"):
+                name = st.text_input(
+                    "Investment Name/Description",
+                    placeholder=placeholder
+                )
+                amount = st.number_input("Dollar Amount", min_value=0.0, step=100.0)
+                rate = st.number_input(
+                    "Interest Rate/Yield % (optional)",
+                    min_value=0.0,
+                    max_value=100.0,
+                    step=0.1,
+                    help="Annual yield or interest rate if applicable"
+                )
+
+                if st.form_submit_button(f"Add {inv_type}"):
+                    if amount > 0:
+                        if st.session_state.portfolio is None:
+                            st.session_state.portfolio = {'holdings': []}
+
+                        new_holding = {
+                            'type': inv_key,
+                            'name': name if name else default_name,
+                            'shares': amount  # For non-stocks, shares = dollar amount
+                        }
+                        if rate > 0:
+                            new_holding['purchase_price'] = rate  # Store rate as purchase_price
+
+                        st.session_state.portfolio['holdings'].append(new_holding)
+                        st.success(f"Added ${amount:,.0f} in {name if name else default_name}")
+                        st.rerun()
+                    else:
+                        st.error("Please enter a dollar amount")
 
     with col2:
         st.subheader("Current Portfolio")
         if st.session_state.portfolio and st.session_state.portfolio.get('holdings'):
-            holdings_df = pd.DataFrame(st.session_state.portfolio['holdings'])
-            st.dataframe(holdings_df)
+            # Display holdings with better formatting
+            holdings = st.session_state.portfolio['holdings']
+            
+            # Normalize holdings for display - add type field if missing
+            for h in holdings:
+                if 'type' not in h:
+                    if 'ticker' in h and h.get('ticker'):
+                        h['type'] = 'stock'
+                    else:
+                        h['type'] = 'other'
+            
+            # Separate stocks from other investments
+            stocks = [h for h in holdings if h.get('type') == 'stock']
+            others = [h for h in holdings if h.get('type') != 'stock']
+            
+            if stocks:
+                st.markdown("**📈 Stocks/ETFs:**")
+                stock_data = []
+                for h in stocks:
+                    ticker = h.get('ticker', 'N/A')
+                    shares = h.get('shares', 0)
+                    price = h.get('purchase_price', '-')
+                    stock_data.append({
+                        'Ticker': ticker,
+                        'Shares': shares,
+                        'Purchase Price': f"${price:.2f}" if isinstance(price, (int, float)) and price > 0 else '-'
+                    })
+                st.dataframe(pd.DataFrame(stock_data), use_container_width=True, hide_index=True)
+            
+            if others:
+                st.markdown("**💵 Other Investments:**")
+                other_data = []
+                for h in others:
+                    inv_type = h.get('type', 'other').upper()
+                    name = h.get('name', 'Unknown')
+                    amount = h.get('shares', 0)  # For non-stocks, shares = dollar amount
+                    rate = h.get('purchase_price', 0)  # For non-stocks, purchase_price = yield/rate
+                    other_data.append({
+                        'Type': inv_type,
+                        'Description': name,
+                        'Amount': f"${amount:,.0f}",
+                        'Yield/Rate': f"{rate:.2f}%" if rate > 0 else '-'
+                    })
+                st.dataframe(pd.DataFrame(other_data), use_container_width=True, hide_index=True)
 
             if st.button("Analyze Current Portfolio"):
                 with st.spinner("Analyzing..."):
@@ -848,6 +946,82 @@ def display_portfolio_analysis(analysis: dict):
             st.success(f"🏆 **Best Performer:** {best_performer['ticker']} (+{best_performer['gain_loss_pct']:.1f}%)")
         with col2:
             st.error(f"📉 **Worst Performer:** {worst_performer['ticker']} ({worst_performer['gain_loss_pct']:.1f}%)")
+
+    # Diversification Recommendations with Scores
+    st.markdown("---")
+    st.markdown("### 💡 Diversification Recommendations")
+    st.markdown("""
+    Based on your portfolio's current allocation, here are specific investment options to consider for better diversification.
+    Each option is scored across multiple factors to help you compare and decide.
+    """)
+    
+    # Generate recommendations
+    agent = PortfolioAnalysisAgent()
+    recommendations = agent.generate_diversification_recommendations(analysis)
+    
+    if recommendations:
+        for idx, rec in enumerate(recommendations, 1):
+            with st.expander(f"**{idx}. {rec['ticker']} - {rec['name']}** (Score: {rec['investment_score']}/100)", expanded=(idx==1)):
+                # Header with category and reason
+                st.markdown(f"**Category:** {rec['category']}")
+                st.markdown(f"**Why Consider:** {rec['reason']}")
+                st.markdown(f"**Suggested Allocation:** {rec['allocation_suggestion']}")
+                
+                # Scores in columns
+                st.markdown("#### 📊 Investment Metrics")
+                score_col1, score_col2, score_col3 = st.columns(3)
+                
+                with score_col1:
+                    risk = rec['scores']['risk_score']
+                    risk_color = "🟢" if risk <= 3 else "🟡" if risk <= 6 else "🔴"
+                    st.metric("Risk Level", f"{risk}/10 {risk_color}", help="Lower is safer")
+                    
+                    st.metric("Return Potential", f"{rec['scores']['return_potential']}/10", help="Higher is better")
+                
+                with score_col2:
+                    st.metric("Diversification Benefit", f"{rec['scores']['diversification_benefit']}/10", help="How much this improves portfolio diversity")
+                    
+                    st.metric("Liquidity", f"{rec['scores']['liquidity']}/10", help="How easily you can buy/sell")
+                
+                with score_col3:
+                    st.metric("Annual Yield", rec['scores']['annual_yield'], help="Expected annual income/returns")
+                    
+                    st.metric("Time Horizon", rec['scores']['time_horizon'], help="Recommended holding period")
+                
+                # Pros and Cons
+                st.markdown("#### ✅ Pros")
+                for pro in rec['pros']:
+                    st.markdown(f"- {pro}")
+                
+                st.markdown("#### ⚠️ Cons & Considerations")
+                for con in rec['cons']:
+                    st.markdown(f"- {con}")
+                
+                # Overall score visualization
+                st.markdown("#### 🎯 Overall Investment Score")
+                score = rec['investment_score']
+                score_color = "#10b981" if score >= 80 else "#f59e0b" if score >= 70 else "#ef4444"
+                st.markdown(f"""
+                <div style="background: linear-gradient(to right, {score_color} {score}%, #e5e7eb {score}%);
+                            height: 30px; border-radius: 8px; position: relative;">
+                    <div style="position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+                                color: white; font-weight: bold; text-shadow: 0 1px 2px rgba(0,0,0,0.5);">
+                        {score}/100
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                if score >= 80:
+                    st.success("⭐ **Highly Recommended** - Strong fit for diversification")
+                elif score >= 70:
+                    st.info("✔️ **Good Option** - Solid choice for portfolio balance")
+                else:
+                    st.warning("⚡ **Consider Carefully** - Weigh pros and cons for your situation")
+    else:
+        st.info("👍 Your portfolio appears well-diversified! Keep monitoring and rebalancing periodically.")
+    
+    # Educational disclaimer
+    st.caption("*These are educational suggestions based on portfolio analysis, not financial advice. Always do your own research and consider consulting a financial advisor before making investment decisions.*")
 
 
 def render_market_tab():
@@ -1495,7 +1669,14 @@ def show_tab_navigation_link(agents_used: List[str], query: str, result: dict):
             message_text = "Want to explore detailed market data?"
 
     elif primary_agent == 'portfolio_analysis':
-        if st.session_state.portfolio:
+        # Try to extract portfolio holdings from the query
+        parsed_holdings = extract_portfolio_from_query(query)
+        if parsed_holdings:
+            # Store the parsed portfolio in session state
+            st.session_state.portfolio = {'holdings': parsed_holdings}
+            link_text = "View portfolio breakdown"
+            message_text = "Want to see detailed portfolio analysis with charts?"
+        elif st.session_state.portfolio:
             link_text = "View portfolio breakdown"
             message_text = "Want to see detailed portfolio analysis with charts?"
         else:
@@ -1626,15 +1807,136 @@ def extract_dollar_amount(query: str) -> Optional[float]:
     return None
 
 
+def extract_portfolio_from_query(query: str) -> Optional[List[Dict[str, Any]]]:
+    """
+    Extract portfolio holdings from a natural language query using LLM semantic understanding.
+    
+    Uses the LLM to parse natural language and identify:
+    - Stock/ETF tickers with share counts
+    - Bonds, CDs, and other fixed-income investments (dollar amounts)
+    - Cash holdings (HYSA, savings accounts, etc.)
+    - Other investments without tickers (real estate, crypto, etc.)
+    
+    Args:
+        query: User's question containing portfolio details
+    
+    Returns:
+        List of holdings dicts with type, ticker/name, amount, and optional purchase_price
+    """
+    import json
+    from src.core.llm import LLMManager
+    
+    # Create LLM instance with low temperature for consistent extraction
+    llm = LLMManager(temperature=0)
+    
+    extraction_prompt = f"""Extract portfolio holdings from the following text. 
+Identify ALL types of investments including stocks, bonds, cash, CDs, and other assets.
+
+Text: "{query}"
+
+Return a JSON array of holdings. Each holding should have:
+- type: Investment type - one of: "stock", "bond", "cash", "cd", "other"
+- ticker: Stock ticker (e.g., "VOO") for stocks, or null for bonds/cash/other
+- name: Descriptive name for non-stock investments (e.g., "Treasury Bonds", "High Yield Savings", "CD 5-year")
+- shares: Number of shares for stocks, or dollar amount for bonds/cash/other
+- purchase_price: (optional) Purchase price per share for stocks, or yield/rate for bonds/CDs
+
+Rules:
+1. For STOCKS/ETFs: type="stock", ticker="AAPL", shares=number of shares
+2. For BONDS: type="bond", ticker=null, name="Treasury Bonds" or "Corporate Bonds", shares=dollar amount
+3. For CASH: type="cash", ticker=null, name="HYSA" or "Savings Account", shares=dollar amount
+4. For CDs: type="cd", ticker=null, name="CD 1-year" or "Certificate of Deposit", shares=dollar amount
+5. For OTHER: type="other", ticker=null, name=description, shares=dollar amount
+6. DO NOT extract common words like "OF", "AT", "IN" as tickers
+7. Convert amounts: "50k"→50000, "1M"→1000000
+8. If no portfolio mentioned, return empty array []
+
+Return ONLY the JSON array, no other text.
+
+Example outputs:
+[{{"type": "stock", "ticker": "VOO", "shares": 300, "purchase_price": 98}}, {{"type": "bond", "ticker": null, "name": "Treasury Bonds", "shares": 25000}}, {{"type": "cash", "ticker": null, "name": "HYSA", "shares": 50000}}]
+[]"""
+    
+    try:
+        response = llm.generate(extraction_prompt)
+        
+        # Extract JSON from response (LLM might add markdown formatting)
+        response = response.strip()
+        if response.startswith('```json'):
+            response = response[7:]
+        if response.startswith('```'):
+            response = response[3:]
+        if response.endswith('```'):
+            response = response[:-3]
+        response = response.strip()
+        
+        # Parse JSON
+        holdings = json.loads(response)
+        
+        # Validate and clean the results
+        validated_holdings = []
+        for holding in holdings:
+            if not isinstance(holding, dict):
+                continue
+            if 'type' not in holding or 'shares' not in holding:
+                continue
+            
+            inv_type = str(holding['type']).lower()
+            if inv_type not in ['stock', 'bond', 'cash', 'cd', 'other']:
+                continue
+            
+            try:
+                shares = float(holding['shares'])
+                validated_holding = {
+                    'type': inv_type,
+                    'shares': shares
+                }
+                
+                # For stocks, ticker is required
+                if inv_type == 'stock':
+                    if 'ticker' not in holding or not holding['ticker']:
+                        continue
+                    ticker = str(holding['ticker']).upper()
+                    if not ticker or len(ticker) > 5:
+                        continue
+                    validated_holding['ticker'] = ticker
+                else:
+                    # For non-stocks, name is required
+                    if 'name' not in holding or not holding['name']:
+                        # Generate default name
+                        name_map = {'bond': 'Bonds', 'cash': 'Cash', 'cd': 'CD', 'other': 'Other Investment'}
+                        validated_holding['name'] = name_map.get(inv_type, 'Investment')
+                    else:
+                        validated_holding['name'] = str(holding['name'])
+                
+                # Add purchase price if present
+                if 'purchase_price' in holding and holding['purchase_price']:
+                    validated_holding['purchase_price'] = float(holding['purchase_price'])
+                
+                validated_holdings.append(validated_holding)
+            except (ValueError, TypeError):
+                continue
+        
+        return validated_holdings if validated_holdings else None
+        
+    except Exception as e:
+        # Fallback to None if LLM extraction fails
+        print(f"Portfolio extraction error: {e}")
+        return None
+
+
+
 def load_sample_portfolio():
     """Load a sample portfolio for demonstration."""
     st.session_state.portfolio = {
         'holdings': [
-            {'ticker': 'VTI', 'shares': 50, 'purchase_price': 200},
-            {'ticker': 'VXUS', 'shares': 30, 'purchase_price': 55},
-            {'ticker': 'BND', 'shares': 40, 'purchase_price': 75},
-            {'ticker': 'AAPL', 'shares': 10, 'purchase_price': 150},
-            {'ticker': 'MSFT', 'shares': 8, 'purchase_price': 280},
+            {'type': 'stock', 'ticker': 'VTI', 'shares': 50, 'purchase_price': 200},
+            {'type': 'stock', 'ticker': 'VXUS', 'shares': 30, 'purchase_price': 55},
+            {'type': 'stock', 'ticker': 'BND', 'shares': 40, 'purchase_price': 75},
+            {'type': 'stock', 'ticker': 'AAPL', 'shares': 10, 'purchase_price': 150},
+            {'type': 'stock', 'ticker': 'MSFT', 'shares': 8, 'purchase_price': 280},
+            {'type': 'cash', 'name': 'High Yield Savings', 'shares': 50000, 'purchase_price': 4.5},
+            {'type': 'bond', 'name': 'Treasury Bonds', 'shares': 25000, 'purchase_price': 3.8},
         ]
     }
 

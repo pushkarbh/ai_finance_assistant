@@ -110,6 +110,7 @@ class PortfolioAnalysisAgent(BaseAgent):
         holdings = []
         for _, row in df.iterrows():
             holding = {
+                'type': 'stock',  # CSV imports are assumed to be stocks
                 'ticker': row.get('ticker', '').upper(),
                 'shares': float(row.get('shares', 0)),
                 'purchase_price': float(row.get('purchase_price', 0)) if pd.notna(row.get('purchase_price')) else None,
@@ -135,9 +136,22 @@ class PortfolioAnalysisAgent(BaseAgent):
         if not holdings:
             return {"error": "No holdings found in portfolio"}
 
-        # Get current prices for all tickers
-        tickers = [h['ticker'] for h in holdings]
-        current_prices = get_multiple_prices(tickers)
+        # Normalize holdings - add 'type' field for backward compatibility
+        for h in holdings:
+            if 'type' not in h:
+                # If it has a ticker, it's a stock
+                if 'ticker' in h and h['ticker']:
+                    h['type'] = 'stock'
+                else:
+                    h['type'] = 'other'
+
+        # Separate stock and non-stock holdings
+        stock_holdings = [h for h in holdings if h.get('type') == 'stock']
+        non_stock_holdings = [h for h in holdings if h.get('type') != 'stock']
+
+        # Get current prices for stock tickers
+        tickers = [h.get('ticker') for h in stock_holdings if h.get('ticker')]
+        current_prices = get_multiple_prices(tickers) if tickers else {}
 
         # Calculate values and metrics
         total_value = 0
@@ -146,9 +160,13 @@ class PortfolioAnalysisAgent(BaseAgent):
         sector_allocation = {}
         asset_type_allocation = {}
 
-        for holding in holdings:
-            ticker = holding['ticker']
-            shares = holding['shares']
+        # Process stock holdings
+        for holding in stock_holdings:
+            ticker = holding.get('ticker')
+            if not ticker:
+                continue
+                
+            shares = holding.get('shares', 0)
             purchase_price = holding.get('purchase_price', 0)
 
             # Get current price
@@ -183,6 +201,51 @@ class PortfolioAnalysisAgent(BaseAgent):
                 'gain_loss_pct': gain_loss_pct,
                 'sector': sector,
                 'company_name': stock_info.get('name', ticker)
+            })
+        
+        # Process non-stock holdings (bonds, cash, CDs, etc.)
+        for holding in non_stock_holdings:
+            inv_type = holding.get('type', 'other')
+            name = holding.get('name', 'Unknown')
+            amount = holding.get('shares', 0)  # For non-stocks, shares = dollar amount
+            yield_rate = holding.get('purchase_price', 0)  # For non-stocks, purchase_price = yield/rate
+            
+            # For non-stocks, current value = amount (no price appreciation)
+            current_value = amount
+            cost_basis = amount
+            gain_loss = 0  # No capital gains for cash/bonds (only interest)
+            gain_loss_pct = 0
+            
+            total_value += current_value
+            total_cost += cost_basis
+            
+            # Track as separate asset type
+            type_name_map = {
+                'bond': 'Bonds',
+                'cash': 'Cash & Equivalents',
+                'cd': 'Certificates of Deposit',
+                'other': 'Other Investments'
+            }
+            asset_type = type_name_map.get(inv_type, 'Other Investments')
+            asset_type_allocation[asset_type] = asset_type_allocation.get(asset_type, 0) + current_value
+            
+            # Add to sector allocation as "Fixed Income" or "Cash"
+            sector = 'Cash & Equivalents' if inv_type == 'cash' else 'Fixed Income'
+            sector_allocation[sector] = sector_allocation.get(sector, 0) + current_value
+            
+            analyzed_holdings.append({
+                'ticker': name,  # Use name instead of ticker
+                'shares': 1,  # Not applicable
+                'purchase_price': amount,  # Show amount
+                'current_price': amount,
+                'current_value': current_value,
+                'cost_basis': cost_basis,
+                'gain_loss': gain_loss,
+                'gain_loss_pct': gain_loss_pct,
+                'sector': sector,
+                'company_name': f"{asset_type} - {name}",
+                'investment_type': inv_type,
+                'yield_rate': yield_rate
             })
 
         # Calculate allocation percentages
@@ -332,7 +395,7 @@ Be encouraging and educational. Explain any financial terms used."""
         lines = []
         for h in sorted_holdings:
             lines.append(
-                f"  - {h['ticker']}: {h['shares']} shares @ ${h['current_price']:.2f} = ${h['current_value']:,.2f}"
+                f"  - {h.get('ticker', h.get('company_name', 'Unknown'))}: {h.get('shares', 0)} shares @ ${h.get('current_price', 0):.2f} = ${h.get('current_value', 0):,.2f}"
             )
         return '\n'.join(lines)
 
@@ -379,3 +442,183 @@ Please explain:
 Keep it educational and avoid specific financial advice."""
 
         return self.generate_response(prompt)
+
+    def generate_diversification_recommendations(
+        self,
+        analysis: Dict[str, Any]
+    ) -> List[Dict[str, Any]]:
+        """
+        Generate specific, scored diversification recommendations.
+
+        Args:
+            analysis: Portfolio analysis results
+
+        Returns:
+            List of recommendation dicts with scores
+        """
+        recommendations = []
+        
+        # Get current portfolio characteristics
+        sector_allocation = analysis.get('sector_allocation', {})
+        total_value = analysis.get('total_value', 0)
+        holdings = analysis.get('holdings', [])
+        diversification_score = analysis.get('diversification_score', {}).get('score', 0)
+        
+        # Determine what's missing/underweighted
+        has_tech = sector_allocation.get('Technology', 0) > 10
+        has_healthcare = sector_allocation.get('Healthcare', 0) > 5
+        has_bonds = any(h.get('ticker') in ['BND', 'AGG', 'TLT'] for h in holdings if h.get('ticker'))
+        has_international = any(h.get('ticker') in ['VXUS', 'VEA', 'VWO', 'EFA'] for h in holdings if h.get('ticker'))
+        has_real_estate = sector_allocation.get('Real Estate', 0) > 3
+        
+        # Recommendation 1: Bonds for stability
+        if not has_bonds:
+            recommendations.append({
+                'ticker': 'BND',
+                'name': 'Vanguard Total Bond Market ETF',
+                'category': 'Fixed Income',
+                'reason': 'Add bond exposure for stability and income',
+                'allocation_suggestion': '20-30% of portfolio',
+                'scores': {
+                    'risk_score': 2,  # 1-10, lower is safer
+                    'return_potential': 5,  # 1-10, higher is better
+                    'time_horizon': 'Short to Long (1+ years)',
+                    'annual_yield': '3.5-4.5%',
+                    'diversification_benefit': 9,  # 1-10, higher is better
+                    'liquidity': 10,  # 1-10, higher is better
+                },
+                'investment_score': 85,  # Overall score 0-100
+                'pros': [
+                    'Low volatility compared to stocks',
+                    'Regular income through interest payments',
+                    'Inverse correlation with stocks (hedges downturns)'
+                ],
+                'cons': [
+                    'Lower long-term returns than stocks',
+                    'Interest rate risk (bond prices fall when rates rise)',
+                    'Inflation risk'
+                ]
+            })
+        
+        # Recommendation 2: International diversification
+        if not has_international:
+            recommendations.append({
+                'ticker': 'VXUS',
+                'name': 'Vanguard Total International Stock ETF',
+                'category': 'International Equity',
+                'reason': 'Diversify beyond US markets',
+                'allocation_suggestion': '15-25% of portfolio',
+                'scores': {
+                    'risk_score': 6,
+                    'return_potential': 7,
+                    'time_horizon': 'Medium to Long (5+ years)',
+                    'annual_yield': '2-3% (dividends)',
+                    'diversification_benefit': 10,
+                    'liquidity': 10,
+                },
+                'investment_score': 78,
+                'pros': [
+                    'Exposure to growing international markets',
+                    'Reduces US-specific risk',
+                    'Currency diversification'
+                ],
+                'cons': [
+                    'Higher volatility than US markets',
+                    'Currency exchange risk',
+                    'Political and economic risks in emerging markets'
+                ]
+            })
+        
+        # Recommendation 3: Healthcare sector (defensive)
+        if not has_healthcare or sector_allocation.get('Healthcare', 0) < 10:
+            recommendations.append({
+                'ticker': 'VHT',
+                'name': 'Vanguard Health Care ETF',
+                'category': 'Healthcare Sector',
+                'reason': 'Add defensive sector with aging demographics tailwind',
+                'allocation_suggestion': '10-15% of portfolio',
+                'scores': {
+                    'risk_score': 5,
+                    'return_potential': 8,
+                    'time_horizon': 'Medium to Long (3+ years)',
+                    'annual_yield': '1-2% (dividends)',
+                    'diversification_benefit': 7,
+                    'liquidity': 9,
+                },
+                'investment_score': 82,
+                'pros': [
+                    'Defensive sector (people need healthcare in any economy)',
+                    'Long-term demographic trends (aging population)',
+                    'Innovation in biotech and medical devices'
+                ],
+                'cons': [
+                    'Regulatory risk (government healthcare policies)',
+                    'High R&D costs and patent cliffs',
+                    'Concentrated in fewer companies than broad market'
+                ]
+            })
+        
+        # Recommendation 4: Real Estate
+        if not has_real_estate:
+            recommendations.append({
+                'ticker': 'VNQ',
+                'name': 'Vanguard Real Estate ETF',
+                'category': 'Real Estate (REITs)',
+                'reason': 'Add real estate exposure for income and inflation hedge',
+                'allocation_suggestion': '5-10% of portfolio',
+                'scores': {
+                    'risk_score': 6,
+                    'return_potential': 7,
+                    'time_horizon': 'Medium to Long (5+ years)',
+                    'annual_yield': '3-5% (dividends)',
+                    'diversification_benefit': 8,
+                    'liquidity': 9,
+                },
+                'investment_score': 75,
+                'pros': [
+                    'High dividend yield from REIT distributions',
+                    'Inflation hedge (rents increase with inflation)',
+                    'Different risk profile than stocks/bonds'
+                ],
+                'cons': [
+                    'Interest rate sensitive (REITs struggle when rates rise)',
+                    'Concentrated risk in real estate market',
+                    'Tax treatment (dividends taxed as ordinary income)'
+                ]
+            })
+        
+        # Recommendation 5: Value stocks if tech-heavy
+        if has_tech and sector_allocation.get('Technology', 0) > 25:
+            recommendations.append({
+                'ticker': 'VTV',
+                'name': 'Vanguard Value ETF',
+                'category': 'Value Stocks',
+                'reason': 'Balance growth-heavy portfolio with value stocks',
+                'allocation_suggestion': '15-20% of portfolio',
+                'scores': {
+                    'risk_score': 5,
+                    'return_potential': 7,
+                    'time_horizon': 'Medium to Long (3+ years)',
+                    'annual_yield': '2-3% (dividends)',
+                    'diversification_benefit': 8,
+                    'liquidity': 10,
+                },
+                'investment_score': 80,
+                'pros': [
+                    'Lower valuations than growth stocks (margin of safety)',
+                    'Higher dividend yields',
+                    'Tends to perform well during economic recovery'
+                ],
+                'cons': [
+                    'May underperform during strong bull markets',
+                    'Often in mature, slower-growing industries',
+                    'Value traps (stocks cheap for good reason)'
+                ]
+            })
+        
+        # Sort by investment score (highest first)
+        recommendations.sort(key=lambda x: x['investment_score'], reverse=True)
+        
+        # Return top 3-4 recommendations
+        return recommendations[:4]
+
