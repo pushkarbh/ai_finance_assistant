@@ -24,7 +24,7 @@ rag:
   chunk_size: 1000
   chunk_overlap: 200
   top_k: 5
-  similarity_threshold: 0.7
+  similarity_threshold: 0.3  # Lowered from 0.7 - FAISS uses L2 distance which needs lower threshold
 
 market_data:
   primary_provider: "yfinance"

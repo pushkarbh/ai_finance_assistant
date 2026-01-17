@@ -283,10 +283,13 @@ def render_chat_tab():
                 if metadata:
                     agents = metadata.get("agents_used", [])
                     sources = metadata.get("sources", [])
-                    
+
                     if agents:
                         st.caption(f"Agents used: {', '.join(agents)}")
-                    
+
+                    # Show educational disclaimer
+                    st.caption("⚠️ *Disclaimer: This is educational information and not financial advice. Always consider your personal financial situation and consult with a professional if needed. You're doing great by seeking knowledge—keep it up!*")
+
                     if sources:
                         with st.expander("📚 Sources & References"):
                             for source in sources:
@@ -318,16 +321,16 @@ def render_chat_tab():
 
         st.markdown("---")
 
-        # Styled container for better visibility with accessible blue
+        # Gentle container with border instead of bold blue background
         st.markdown(f"""
-        <div style="background: linear-gradient(135deg, #0066cc 0%, #004c99 100%);
-                    padding: 20px;
-                    border-radius: 10px;
-                    margin: 10px 0;
-                    box-shadow: 0 4px 6px rgba(0,0,0,0.15);">
-            <p style="color: white;
-                      font-size: 17px;
-                      font-weight: 600;
+        <div style="background-color: #f0f7ff;
+                    border: 2px solid #0066cc;
+                    padding: 16px;
+                    border-radius: 8px;
+                    margin: 10px 0;">
+            <p style="color: #0066cc;
+                      font-size: 15px;
+                      font-weight: 500;
                       margin: 0;
                       text-align: center;">
                 💡 {action['message']}
@@ -392,28 +395,49 @@ def render_chat_tab():
                     # Display response
                     st.markdown(response)
 
+                    # Show inline citations if sources exist
+                    sources = result.get("sources", [])
+
+                    if sources:
+                        st.markdown("")
+                        st.markdown("**📚 Sources:**")
+                        citation_links = []
+                        seen_citations = set()  # Deduplicate citations
+
+                        for idx, source in enumerate(sources, 1):
+                            if isinstance(source, dict):
+                                title = source.get("title", "")
+                                source_name = source.get("source", title or f"Source {idx}")
+                                url = source.get("url")
+
+                                # Create unique key for this citation
+                                citation_key = url if url else title
+
+                                # Only add if not already seen
+                                if citation_key and citation_key not in seen_citations:
+                                    seen_citations.add(citation_key)
+                                    if url:
+                                        citation_links.append(f"[{title}]({url})")
+                                    else:
+                                        citation_links.append(source_name)
+                            else:
+                                source_str = str(source)
+                                if source_str not in seen_citations:
+                                    seen_citations.add(source_str)
+                                    citation_links.append(source_str)
+
+                        if citation_links:
+                            st.markdown(" • ".join(citation_links))
+                    else:
+                        st.caption("💡 No sources retrieved for this response")
+
                     # Show agents used (for transparency)
                     agents_used = result.get("agents_used", [])
                     if agents_used:
                         st.caption(f"Agents used: {', '.join(agents_used)}")
 
-                    # Show sources in an expander (for RAG citations)
-                    sources = result.get("sources", [])
-                    if sources:
-                        with st.expander("📚 Sources & References"):
-                            for source in sources:
-                                if isinstance(source, dict):
-                                    title = source.get("title", source.get("source", "Unknown"))
-                                    url = source.get("url")
-                                    source_name = source.get("source", "")
-                                    score = source.get("score", 0)
-
-                                    if url:
-                                        st.markdown(f"- [{title}]({url}) ({source_name}) - relevance: {score:.2f}")
-                                    else:
-                                        st.markdown(f"- {title} ({source_name}) - relevance: {score:.2f}")
-                                else:
-                                    st.markdown(f"- {source}")
+                    # Show educational disclaimer
+                    st.caption("⚠️ *Disclaimer: This is educational information and not financial advice. Always consider your personal financial situation and consult with a professional if needed. You're doing great by seeking knowledge—keep it up!*")
 
                     # Show clickable link to relevant tab - this will trigger rerun
                     if agents_used:

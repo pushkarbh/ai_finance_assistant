@@ -168,15 +168,28 @@ class RAGChain:
         # Build context
         context_parts = []
         sources = []
+        seen_sources = set()  # Track unique sources by URL or title
 
         for result in results:
             context_parts.append(result["content"])
-            sources.append({
-                "title": result["title"],
-                "source": result["source"],
-                "score": result["score"],
-                "url": result.get("url")  # Include URL for citations
-            })
+
+            # Create unique identifier (prefer URL, fallback to title)
+            url = result.get("url")
+            title = result["title"]
+
+            # Only include sources with real URLs (not anchor links to markdown files)
+            # Skip sources with URLs starting with # or those without URLs
+            if url and not url.startswith("#"):
+                unique_key = url
+                # Only add source if we haven't seen it before
+                if unique_key not in seen_sources:
+                    seen_sources.add(unique_key)
+                    sources.append({
+                        "title": title,
+                        "source": result["source"],
+                        "score": result["score"],
+                        "url": url
+                    })
 
         context = "\n\n---\n\n".join(context_parts) if context_parts else ""
 

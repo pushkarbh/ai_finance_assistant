@@ -67,9 +67,8 @@ class FinanceQAAgent(BaseAgent):
         # Add full source info to state (includes URLs for citations)
         state["sources"].extend(sources)
 
-        # Format with sources if available (now passes full source dicts with URLs)
-        if sources:
-            response = self.format_response_with_sources(response, sources)
+        # Don't format sources into response text - the UI will display them
+        # This prevents duplicate source listings
 
         # Update state with output
         state = update_state_with_agent_output(

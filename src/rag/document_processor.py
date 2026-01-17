@@ -118,6 +118,12 @@ class DocumentProcessor:
                 # Add URL if present in frontmatter (for scraped articles)
                 if frontmatter.get("url"):
                     metadata["url"] = frontmatter["url"]
+                else:
+                    # For local knowledge base files, create a reference link
+                    # This helps users identify the source document
+                    file_name = file_path.name
+                    metadata["url"] = f"#knowledge-base-{file_path.stem}"
+                    metadata["source_type"] = "knowledge_base"
 
                 # Add scraped date if present
                 if frontmatter.get("scraped_date"):
