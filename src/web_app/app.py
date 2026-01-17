@@ -852,7 +852,12 @@ def display_portfolio_analysis(analysis: dict):
         st.caption("Number of different positions")
     with col4:
         div_score = analysis['diversification_score']
-        st.metric("Diversification", div_score['rating'], f"{div_score['score']}/100")
+        st.metric(
+            "Diversification", 
+            div_score['rating'], 
+            f"{div_score['score']}/100",
+            help=f"Rating: {div_score['rating']} - Score: {div_score['score']}/100. Measures how well your portfolio is spread across sectors."
+        )
         st.caption("How well your portfolio is spread across sectors")
 
     # Interpretation of overall performance
@@ -880,11 +885,51 @@ def display_portfolio_analysis(analysis: dict):
         """)
         sector_data = analysis.get('sector_allocation', {})
         if sector_data:
-            fig = px.pie(
+            # Create stunning 3D-style pie chart with rich colors
+            colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', 
+                     '#F7DC6F', '#BB8FCE', '#85C1E2', '#F8B739', '#52B788']
+            
+            fig = go.Figure(data=[go.Pie(
+                labels=list(sector_data.keys()),
                 values=list(sector_data.values()),
-                names=list(sector_data.keys()),
-                title="Portfolio by Sector"
+                hole=0.4,  # Donut chart for modern look
+                marker=dict(
+                    colors=colors[:len(sector_data)],
+                    line=dict(color='#FFFFFF', width=3)
+                ),
+                textposition='outside',
+                textinfo='label+percent',
+                textfont=dict(size=12, color='#2C3E50', family='Arial Black'),
+                hovertemplate='<b>%{label}</b><br>%{value:.1f}%<br>%{percent}<extra></extra>',
+                pull=[0.05] * len(sector_data),  # Slight separation for 3D effect
+                rotation=45,
+                insidetextorientation='radial'
+            )])
+            
+            fig.update_layout(
+                title={
+                    'text': "Portfolio by Sector",
+                    'y':0.95,
+                    'x':0.5,
+                    'xanchor': 'center',
+                    'yanchor': 'top',
+                    'font': dict(size=18, color='#2C3E50', family='Arial Black')
+                },
+                showlegend=True,
+                legend=dict(
+                    orientation="v",
+                    yanchor="middle",
+                    y=0.5,
+                    xanchor="left",
+                    x=1.05,
+                    font=dict(size=11)
+                ),
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
+                height=450,
+                margin=dict(l=20, r=120, t=60, b=20)
             )
+            
             st.plotly_chart(fig, use_container_width=True)
 
             # Add concentration warning
@@ -986,7 +1031,11 @@ def display_portfolio_analysis(analysis: dict):
                 with score_col3:
                     st.metric("Annual Yield", rec['scores']['annual_yield'], help="Expected annual income/returns")
                     
-                    st.metric("Time Horizon", rec['scores']['time_horizon'], help="Recommended holding period")
+                    st.metric(
+                        "Time Horizon", 
+                        rec['scores']['time_horizon'], 
+                        help=f"Recommended holding period: {rec['scores']['time_horizon']}"
+                    )
                 
                 # Pros and Cons
                 st.markdown("#### ✅ Pros")

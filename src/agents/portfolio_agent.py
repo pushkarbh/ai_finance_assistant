@@ -482,7 +482,7 @@ Keep it educational and avoid specific financial advice."""
                 'scores': {
                     'risk_score': 2,  # 1-10, lower is safer
                     'return_potential': 5,  # 1-10, higher is better
-                    'time_horizon': 'Short to Long (1+ years)',
+                    'time_horizon': '1+ years',
                     'annual_yield': '3.5-4.5%',
                     'diversification_benefit': 9,  # 1-10, higher is better
                     'liquidity': 10,  # 1-10, higher is better
@@ -511,7 +511,7 @@ Keep it educational and avoid specific financial advice."""
                 'scores': {
                     'risk_score': 6,
                     'return_potential': 7,
-                    'time_horizon': 'Medium to Long (5+ years)',
+                    'time_horizon': '5+ years',
                     'annual_yield': '2-3% (dividends)',
                     'diversification_benefit': 10,
                     'liquidity': 10,
@@ -540,7 +540,7 @@ Keep it educational and avoid specific financial advice."""
                 'scores': {
                     'risk_score': 5,
                     'return_potential': 8,
-                    'time_horizon': 'Medium to Long (3+ years)',
+                    'time_horizon': '3+ years',
                     'annual_yield': '1-2% (dividends)',
                     'diversification_benefit': 7,
                     'liquidity': 9,
@@ -569,7 +569,7 @@ Keep it educational and avoid specific financial advice."""
                 'scores': {
                     'risk_score': 6,
                     'return_potential': 7,
-                    'time_horizon': 'Medium to Long (5+ years)',
+                    'time_horizon': '5+ years',
                     'annual_yield': '3-5% (dividends)',
                     'diversification_benefit': 8,
                     'liquidity': 9,
@@ -598,7 +598,7 @@ Keep it educational and avoid specific financial advice."""
                 'scores': {
                     'risk_score': 5,
                     'return_potential': 7,
-                    'time_horizon': 'Medium to Long (3+ years)',
+                    'time_horizon': '3+ years',
                     'annual_yield': '2-3% (dividends)',
                     'diversification_benefit': 8,
                     'liquidity': 10,
