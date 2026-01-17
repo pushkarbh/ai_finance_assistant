@@ -67,6 +67,41 @@ def init_session_state():
         st.session_state.selected_message_idx = None
 
 
+def format_agent_name(agent_id: str) -> str:
+    """Convert agent ID to human-readable name."""
+    agent_names = {
+        'finance_qa': 'Finance Q&A',
+        'market_analysis': 'Market Analysis',
+        'portfolio_analysis': 'Portfolio Analysis',
+        'goal_planning': 'Goal Planning',
+        'query_analyzer': 'Query Analyzer',
+        'tax_optimizer': 'Tax Optimizer',
+        'investment_advisor': 'Investment Advisor'
+    }
+    return agent_names.get(agent_id, agent_id.replace('_', ' ').title())
+
+
+def display_agents_capsules(agents: List[str]) -> None:
+    """Display agent names as visual capsules."""
+    if not agents:
+        return
+
+    # Convert agent IDs to readable names
+    agent_names = [format_agent_name(agent) for agent in agents]
+
+    # Create HTML capsules
+    capsules_html = "".join([
+        f'<span style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); '
+        f'color: white; padding: 4px 12px; border-radius: 16px; font-size: 12px; font-weight: 500; '
+        f'margin-right: 6px; margin-bottom: 4px;">{name}</span>'
+        for name in agent_names
+    ])
+
+    # Use st.write with HTML
+    html_content = f'<div style="margin-top: 8px; margin-bottom: 4px;"><span style="color: #666; font-size: 13px; margin-right: 8px;">Agents used:</span>{capsules_html}</div>'
+    st.write(html_content, unsafe_allow_html=True)
+
+
 def main():
     """Main application entry point."""
     init_session_state()
@@ -144,18 +179,24 @@ def main():
                     if idx < len(st.session_state.chat_history):
                         user_msg = st.session_state.chat_history[idx]
                         user_content = user_msg.get("content", "")
-                        user_preview = user_content[:60] + "..." if len(user_content) > 60 else user_content
-                        
+
+                        # Truncate to first 5-6 words
+                        words = user_content.split()
+                        if len(words) > 6:
+                            user_preview = " ".join(words[:6]) + "..."
+                        else:
+                            user_preview = user_content
+
                         # Check if there's an assistant response
                         has_response = (idx + 1) < len(st.session_state.chat_history)
-                        
+
                         # Create clickable button for this message pair
                         button_label = f"💬 {user_preview}"
                         if st.button(
                             button_label,
                             key=f"msg_pair_{idx}",
                             use_container_width=True,
-                            help="Click to view full conversation"
+                            help=user_content  # Show full text on hover
                         ):
                             st.session_state.selected_message_idx = idx
                             st.session_state.active_tab = 0  # Switch to chat tab
@@ -285,7 +326,7 @@ def render_chat_tab():
                     sources = metadata.get("sources", [])
 
                     if agents:
-                        st.caption(f"Agents used: {', '.join(agents)}")
+                        display_agents_capsules(agents)
 
                     # Show educational disclaimer
                     st.caption("⚠️ *Disclaimer: This is educational information and not financial advice. Always consider your personal financial situation and consult with a professional if needed. You're doing great by seeking knowledge—keep it up!*")
@@ -352,7 +393,7 @@ def render_chat_tab():
 
                         # Show agents used
                         if agents:
-                            st.caption(f"Agents used: {', '.join(agents)}")
+                            display_agents_capsules(agents)
 
                         # Show educational disclaimer
                         st.caption("⚠️ *Disclaimer: This is educational information and not financial advice. Always consider your personal financial situation and consult with a professional if needed. You're doing great by seeking knowledge—keep it up!*")
@@ -484,7 +525,7 @@ def render_chat_tab():
 
                     # Show agents used (for transparency)
                     if agents_used:
-                        st.caption(f"Agents used: {', '.join(agents_used)}")
+                        display_agents_capsules(agents_used)
 
                     # Show educational disclaimer
                     st.caption("⚠️ *Disclaimer: This is educational information and not financial advice. Always consider your personal financial situation and consult with a professional if needed. You're doing great by seeking knowledge—keep it up!*")
@@ -578,7 +619,7 @@ def render_chat_tab():
                     # Show agents used (for transparency)
                     agents_used = result.get("agents_used", [])
                     if agents_used:
-                        st.caption(f"Agents used: {', '.join(agents_used)}")
+                        display_agents_capsules(agents_used)
 
                     # Show educational disclaimer
                     st.caption("⚠️ *Disclaimer: This is educational information and not financial advice. Always consider your personal financial situation and consult with a professional if needed. You're doing great by seeking knowledge—keep it up!*")
