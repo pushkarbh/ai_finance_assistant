@@ -1850,16 +1850,52 @@ def extract_ticker_from_query(query: str) -> Optional[str]:
 def extract_dollar_amount(query: str) -> Optional[float]:
     """
     Extract dollar amount from query.
-    
+
     Args:
         query: User's question
-    
+
     Returns:
         Dollar amount if found, None otherwise
     """
     import re
-    
-    # Look for patterns like $100,000 or $1M or 100k
+
+    # Exclude retirement account names that contain numbers + k (like 401k, 403b, 457, etc.)
+    retirement_accounts = [
+        r'\b401[k(]',  # 401k or 401(k)
+        r'\b403[b(]',  # 403b or 403(b)
+        r'\b457\b',    # 457 plan
+        r'\bIRA\b',    # IRA
+        r'\bRoth\b',   # Roth
+    ]
+
+    # Check if query contains retirement account references
+    for account_pattern in retirement_accounts:
+        if re.search(account_pattern, query, re.IGNORECASE):
+            # If we find retirement account terms, be more strict about what we extract
+            # Only match explicit dollar signs to avoid confusion
+            strict_patterns = [
+                r'\$([0-9,]+\.?[0-9]*)\s*(?:million|M)',  # $1.5M, $1 million
+                r'\$([0-9,]+\.?[0-9]*)\s*(?:thousand|K)',  # $100K, $100 thousand
+                r'\$([0-9,]+\.?[0-9]*)',  # $100,000
+            ]
+
+            for pattern in strict_patterns:
+                match = re.search(pattern, query, re.IGNORECASE)
+                if match:
+                    amount_str = match.group(1).replace(',', '')
+                    try:
+                        amount = float(amount_str)
+                        # Apply multipliers
+                        if re.search(r'million|M', match.group(0), re.IGNORECASE):
+                            amount *= 1_000_000
+                        elif re.search(r'thousand|K', match.group(0), re.IGNORECASE):
+                            amount *= 1_000
+                        return amount
+                    except ValueError:
+                        continue
+            return None  # Don't try looser patterns if retirement accounts mentioned
+
+    # Look for patterns like $100,000 or $1M or 100k (if no retirement accounts mentioned)
     patterns = [
         r'\$([0-9,]+\.?[0-9]*)\s*(?:million|M)',  # $1.5M, $1 million
         r'\$([0-9,]+\.?[0-9]*)\s*(?:thousand|K)',  # $100K, $100 thousand
@@ -1867,7 +1903,7 @@ def extract_dollar_amount(query: str) -> Optional[float]:
         r'([0-9,]+\.?[0-9]*)\s*(?:million|M)',  # 1.5M
         r'([0-9,]+\.?[0-9]*)\s*(?:thousand|K)',  # 100K
     ]
-    
+
     for pattern in patterns:
         match = re.search(pattern, query, re.IGNORECASE)
         if match:
@@ -1882,7 +1918,7 @@ def extract_dollar_amount(query: str) -> Optional[float]:
                 return amount
             except ValueError:
                 continue
-    
+
     return None
 
 
