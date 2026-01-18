@@ -2232,29 +2232,67 @@ def render_goals_tab():
     based on different return scenarios.
     """)
     
-    # Check if we have pre-loaded goal amount from chat
-    preload_amount = st.session_state.preload_data.get('target_amount')
-    default_target = 100000
-    if preload_amount:
-        default_target = int(preload_amount)
-        st.success(f"✨ Pre-filled target amount ${default_target:,} from your question!")
-        # Clear preload data after showing message
-        st.session_state.preload_data = {}
+    # Check if we have pre-loaded data from chat and haven't used it yet
+    preload_data = st.session_state.preload_data
+    has_preload = bool(preload_data)
+    
+    # Initialize form values in session state if not present or if we have new preload data
+    if 'goal_form_initialized' not in st.session_state or has_preload:
+        # Set defaults from preload data if available, otherwise use standard defaults
+        st.session_state.goal_target = int(preload_data.get('target_amount', 100000))
+        st.session_state.goal_current = int(preload_data.get('current_savings', 10000))
+        st.session_state.goal_monthly = int(preload_data.get('monthly_contribution', 500))
+        st.session_state.goal_years = int(preload_data.get('years_to_goal', 10))
+        st.session_state.goal_risk = preload_data.get('risk_tolerance', 'moderate')
+        st.session_state.goal_type = preload_data.get('goal_type', 'retirement')
+        st.session_state.goal_form_initialized = True
+        
+        # Show success message if values were pre-filled from chat
+        if has_preload:
+            preload_msgs = []
+            if 'target_amount' in preload_data:
+                preload_msgs.append(f"Target: ${st.session_state.goal_target:,}")
+            if 'current_savings' in preload_data:
+                preload_msgs.append(f"Current Savings: ${st.session_state.goal_current:,}")
+            if 'monthly_contribution' in preload_data:
+                preload_msgs.append(f"Monthly: ${st.session_state.goal_monthly:,}")
+            if 'years_to_goal' in preload_data:
+                preload_msgs.append(f"Years: {st.session_state.goal_years}")
+            
+            if preload_msgs:
+                st.success(f"✨ Pre-filled from your question: {' | '.join(preload_msgs)}")
+            
+            # Clear preload data after using it
+            st.session_state.preload_data = {}
 
     col1, col2 = st.columns([1, 1])
 
     with col1:
         st.subheader("Goal Parameters")
 
+        # Map goal_type to display name
+        goal_type_options = ["Retirement", "House Down Payment", "Education", "Emergency Fund", "Other"]
+        goal_type_map = {
+            'retirement': 'Retirement',
+            'house': 'House Down Payment',
+            'education': 'Education',
+            'emergency': 'Emergency Fund',
+            'general': 'Other'
+        }
+        default_goal_display = goal_type_map.get(st.session_state.goal_type, 'Retirement')
+        default_goal_index = goal_type_options.index(default_goal_display) if default_goal_display in goal_type_options else 0
+
         goal_type = st.selectbox(
             "Goal Type",
-            ["Retirement", "House Down Payment", "Education", "Emergency Fund", "Other"]
+            goal_type_options,
+            index=default_goal_index,
+            key="goal_type_select"
         )
 
         target_amount = st.number_input(
             "Target Amount ($)",
             min_value=0,
-            value=default_target,
+            value=st.session_state.goal_target,
             step=10000,
             key="goal_target_amount"
         )
@@ -2262,28 +2300,41 @@ def render_goals_tab():
         current_savings = st.number_input(
             "Current Savings ($)",
             min_value=0,
-            value=10000,
-            step=1000
+            value=st.session_state.goal_current,
+            step=1000,
+            key="goal_current_savings"
         )
 
         monthly_contribution = st.number_input(
             "Monthly Contribution ($)",
             min_value=0,
-            value=500,
-            step=100
+            value=st.session_state.goal_monthly,
+            step=100,
+            key="goal_monthly_contribution"
         )
 
         years = st.slider(
             "Years Until Goal",
             min_value=1,
             max_value=40,
-            value=10
+            value=st.session_state.goal_years,
+            key="goal_years_slider"
         )
+
+        # Map risk_tolerance to display value
+        risk_options = ["Conservative (4%)", "Moderate (6%)", "Aggressive (8%)"]
+        risk_map = {
+            'conservative': 0,
+            'moderate': 1,
+            'aggressive': 2
+        }
+        default_risk_index = risk_map.get(st.session_state.goal_risk, 1)
 
         risk_level = st.select_slider(
             "Risk Tolerance",
-            options=["Conservative (4%)", "Moderate (6%)", "Aggressive (8%)"],
-            value="Moderate (6%)"
+            options=risk_options,
+            value=risk_options[default_risk_index],
+            key="goal_risk_slider"
         )
 
         calculate = st.button("Calculate Projection", type="primary")
@@ -2505,14 +2556,40 @@ def show_tab_navigation_link(agents_used: List[str], query: str, result: dict):
             message_text = "Upload your portfolio to see detailed analysis"
 
     elif primary_agent == 'goal_planning':
-        goal_amount = extract_dollar_amount(query)
-        if goal_amount:
-            preload_data['target_amount'] = goal_amount
-            link_text = f"Visualize ${goal_amount:,.0f} goal"
-            message_text = f"Want to see growth projections for your ${goal_amount:,.0f} goal?"
+        # Try to extract goal parameters from the agent's output
+        goal_params = None
+        agent_outputs = result.get("agent_outputs", {})
+        if "goal_planning" in agent_outputs:
+            goal_params = agent_outputs["goal_planning"].get("goal_params")
+        
+        if goal_params:
+            # Store all extracted parameters
+            if goal_params.get('target_amount'):
+                preload_data['target_amount'] = goal_params['target_amount']
+            if goal_params.get('current_savings'):
+                preload_data['current_savings'] = goal_params['current_savings']
+            if goal_params.get('monthly_contribution'):
+                preload_data['monthly_contribution'] = goal_params['monthly_contribution']
+            if goal_params.get('years_to_goal'):
+                preload_data['years_to_goal'] = goal_params['years_to_goal']
+            if goal_params.get('risk_tolerance'):
+                preload_data['risk_tolerance'] = goal_params['risk_tolerance']
+            if goal_params.get('goal_type'):
+                preload_data['goal_type'] = goal_params['goal_type']
+            
+            target_amount = goal_params.get('target_amount', 0)
+            link_text = f"Visualize ${target_amount:,.0f} goal" if target_amount else "Visualize your goal"
+            message_text = f"Want to see growth projections for your ${target_amount:,.0f} goal?" if target_amount else "Want to visualize your financial goal with detailed projections?"
         else:
-            link_text = "Plan your goal"
-            message_text = "Want to visualize your financial goal with detailed projections?"
+            # Fallback to extracting just dollar amount from query
+            goal_amount = extract_dollar_amount(query)
+            if goal_amount:
+                preload_data['target_amount'] = goal_amount
+                link_text = f"Visualize ${goal_amount:,.0f} goal"
+                message_text = f"Want to see growth projections for your ${goal_amount:,.0f} goal?"
+            else:
+                link_text = "Plan your goal"
+                message_text = "Want to visualize your financial goal with detailed projections?"
 
     # Store preload data
     st.session_state.preload_data = preload_data

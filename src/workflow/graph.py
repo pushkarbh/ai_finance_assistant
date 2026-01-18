@@ -272,6 +272,7 @@ Create a unified response that:
             "response": final_state.get("final_response", ""),
             "sources": final_state.get("sources", []),
             "agents_used": list(final_state.get("agent_outputs", {}).keys()),
+            "agent_outputs": final_state.get("agent_outputs", {}),
             "query_type": final_state.get("query_type"),
             "session_id": session_id,
             "errors": final_state.get("errors", [])

@@ -181,14 +181,20 @@ If this is not a goal-planning query, respond with just: NOT_GOAL_QUERY"""
         # Get goal-specific guidance
         goal_guidance = self._get_goal_type_guidance(goal_type)
 
+        # Format parameter values for display
+        target_str = f"${target_amount:,.2f}" if target_amount else "Not specified"
+        current_str = f"${current_savings:,.2f}" if current_savings else "Not specified"
+        monthly_str = f"${monthly_contribution:,.2f}" if monthly_contribution else "Not specified"
+        years_str = f"{years_to_goal} years" if years_to_goal else "Not specified"
+
         prompt = f"""Create an educational financial goal plan based on these parameters:
 
 GOAL PARAMETERS:
 - Goal Type: {goal_type}
-- Target Amount: ${target_amount:,.2f if target_amount else 'Not specified'}
-- Current Savings: ${current_savings:,.2f if current_savings else 'Not specified'}
-- Monthly Contribution: ${monthly_contribution:,.2f if monthly_contribution else 'Not specified'}
-- Time Horizon: {years_to_goal} years if years_to_goal else 'Not specified'
+- Target Amount: {target_str}
+- Current Savings: {current_str}
+- Monthly Contribution: {monthly_str}
+- Time Horizon: {years_str}
 - Risk Tolerance: {risk_tolerance}
 
 PROJECTIONS:
