@@ -503,11 +503,14 @@ def main():
         if st.button("🔄 Start New Chat"):
             st.session_state.chat_history = []
             st.session_state.selected_message_idx = None
+            st.session_state.navigate_to_tab = 0  # Switch to Chat tab
             st.rerun()
 
         if st.button("📋 Load Sample Portfolio"):
             load_sample_portfolio()
+            st.session_state.navigate_to_tab = 1  # Switch to Portfolio tab
             st.success("Sample portfolio loaded!")
+            st.rerun()
 
     # Handle tab switching from agent response
     if st.session_state.switch_to_tab is not None:
@@ -1412,7 +1415,7 @@ def render_market_tab():
                     
                     if df is not None:
                         # Display in tabs for different time periods
-                        tab1m, tab6m, tabytd, tab5y = st.tabs(["📅 1 Month", "📅 6 Months", "📅 YTD", "📅 5 Years"])
+                        tab1m, tab6m, tabytd, tab5y = st.tabs(["� 1 Month", "📊 6 Months", "📊 YTD", "📊 5 Years"])
                         
                         with tab1m:
                             # Sort by 1 month performance
@@ -1555,7 +1558,7 @@ def render_market_tab():
                     
                     if df_indices is not None:
                         # Display in tabs for different time periods
-                        idx_tab1m, idx_tab6m, idx_tabytd, idx_tab5y = st.tabs(["📅 1 Month", "📅 6 Months", "📅 YTD", "📅 5 Years"])
+                        idx_tab1m, idx_tab6m, idx_tabytd, idx_tab5y = st.tabs(["� 1 Month", "📊 6 Months", "📊 YTD", "📊 5 Years"])
                     
                     with idx_tab1m:
                         df_sorted = df_indices.copy()
@@ -1746,7 +1749,7 @@ def render_market_tab():
                         # Create tabbed visualization for different time periods
                         st.markdown("**📊 Sector Performance Across Time Periods:**")
                         
-                        sector_tabs = st.tabs(["📅 1 Month", "📅 6 Months", "📅 YTD", "📅 5 Years"])
+                        sector_tabs = st.tabs(["� 1 Month", "📈 6 Months", "📈 YTD", "📈 5 Years"])
                         
                         time_periods = [
                             ('1mo', '1 Month', sector_tabs[0]),
@@ -2107,7 +2110,7 @@ def render_market_tab():
                     """, unsafe_allow_html=True)
 
                     timeframe_tab1, timeframe_tab2, timeframe_tab3, timeframe_tab4, timeframe_tab5 = st.tabs([
-                        "📅 1 Month", "📅 6 Months", "📅 YTD", "📅 1 Year", "📅 5 Years"
+                        "� 1 Month", "📈 6 Months", "📈 YTD", "📈 1 Year", "📈 5 Years"
                     ])
 
                     # Helper function to create enhanced chart
