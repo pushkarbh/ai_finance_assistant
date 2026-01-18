@@ -958,24 +958,12 @@ def render_portfolio_tab():
         if uploaded_file is not None:
             try:
                 df = pd.read_csv(uploaded_file)
-                st.dataframe(df)
-
-                if st.button("Analyze Portfolio"):
-                    with smart_spinner():
-                        # Parse portfolio
-                        agent = PortfolioAnalysisAgent()
-                        holdings = agent.parse_portfolio_csv(uploaded_file.getvalue().decode())
-
-                        portfolio_data = {'holdings': holdings}
-                        st.session_state.portfolio = portfolio_data
-
-                        # Analyze
-                        analysis = agent.analyze_portfolio(portfolio_data)
-
-                        if 'error' not in analysis:
-                            display_portfolio_analysis(analysis)
-                        else:
-                            st.error(f"Error: {analysis['error']}")
+                # Parse portfolio and store in session state
+                agent = PortfolioAnalysisAgent()
+                holdings = agent.parse_portfolio_csv(uploaded_file.getvalue().decode())
+                portfolio_data = {'holdings': holdings}
+                st.session_state.portfolio = portfolio_data
+                st.success(f"✅ Portfolio loaded successfully with {len(holdings)} holdings")
 
             except Exception as e:
                 st.error(f"Error reading file: {str(e)}")
