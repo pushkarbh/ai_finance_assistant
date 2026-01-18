@@ -2,6 +2,24 @@
 
 A multi-agent conversational AI system for financial education, built with LangGraph workflow orchestration and RAG-based knowledge retrieval.
 
+## 🚀 Quick Start
+
+**With Docker (Recommended):**
+```bash
+echo "OPENAI_API_KEY=your_key_here" > .env
+docker-compose up -d
+```
+Access at `http://localhost:8502` • See [Docker Setup](#running-with-docker-) for details
+
+**Local Installation:**
+```bash
+python -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+python scripts/init_rag.py
+python run.py
+```
+Access at `http://localhost:8501` • See [Local Setup](#running-locally) for details
+
 ## Overview
 
 The AI Finance Assistant democratizes financial literacy by providing intelligent, personalized guidance through a conversational interface. It leverages multiple specialized agents to handle diverse financial queries, from basic education to portfolio analysis.
@@ -336,6 +354,101 @@ pytest --cov=src --cov-report=html
 
 - Press `Ctrl+C` in the terminal where Streamlit is running
 - Deactivate virtual environment: `deactivate`
+
+## Running with Docker 🐳
+
+Docker provides an isolated, reproducible environment that works consistently across all platforms.
+
+### Prerequisites
+
+- **Docker** installed ([Get Docker](https://docs.docker.com/get-docker/))
+- **Docker Compose** (included with Docker Desktop)
+- **OpenAI API Key**
+
+### Quick Start with Docker Compose (Recommended)
+
+The easiest way to run the application:
+
+```bash
+# 1. Clone the repository (if you haven't already)
+git clone https://github.com/pushkarbh/ai_finance_assistant.git
+cd ai_finance_assistant
+
+# 2. Create .env file with your OpenAI API key
+echo "OPENAI_API_KEY=your_openai_api_key_here" > .env
+
+# 3. Build and start the container
+docker-compose up -d
+
+# 4. View logs (optional)
+docker-compose logs -f
+
+# 5. Stop the container
+docker-compose down
+```
+
+**Access the app at:** `http://localhost:8502`
+
+### Using Docker Directly
+
+If you prefer not to use Docker Compose:
+
+```bash
+# Build the image
+docker build -t ai-finance-assistant .
+
+# Run the container
+docker run -d \
+  --name ai-finance-assistant \
+  -p 8502:8502 \
+  -e OPENAI_API_KEY=your_api_key_here \
+  -v $(pwd)/src/data:/app/src/data \
+  ai-finance-assistant
+
+# View logs
+docker logs -f ai-finance-assistant
+
+# Stop and remove
+docker stop ai-finance-assistant
+docker rm ai-finance-assistant
+```
+
+### Docker Features
+
+✅ **No Python installation required** - Everything runs in the container  
+✅ **Consistent environment** - Works the same on macOS, Linux, and Windows  
+✅ **Easy updates** - Just rebuild the image  
+✅ **Production-ready** - Includes health checks and resource limits  
+✅ **Data persistence** - FAISS index and knowledge base are persisted  
+
+### Docker Troubleshooting
+
+**Container won't start:**
+```bash
+# Check logs
+docker-compose logs
+
+# Common fix: rebuild
+docker-compose up --build
+```
+
+**Port already in use:**
+```bash
+# Change port in docker-compose.yml
+ports:
+  - "8503:8502"  # Use 8503 instead
+```
+
+**OPENAI_API_KEY not set:**
+```bash
+# Verify .env file exists and contains your key
+cat .env
+
+# Or pass directly
+docker run -e OPENAI_API_KEY=sk-your-key ...
+```
+
+For comprehensive Docker documentation including cloud deployment, see [DOCKER.md](DOCKER.md).
 
 ## Usage
 

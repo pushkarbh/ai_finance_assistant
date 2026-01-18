@@ -1,0 +1,52 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project specific
+*.env
+.env.local
+config.local.yaml
+
+# Git
+.git/
+.gitignore
+
+# Documentation (not needed in container)
+docs/
+*.md
+!README.md
+
+# Test files
+tests/
+test_data/
+
+# Scripts
+scripts/
+*.sh
+
+# Temporary files
+*.tmp
+*.bak
