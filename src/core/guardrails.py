@@ -26,15 +26,14 @@ class FinanceTopicValidator(Validator):
         'inflation', 'recession', 'diversif', 'allocation', 'capital gains'
     ]
     
-    # Obvious off-topic keywords
+    # Obvious off-topic keywords (core essentials only - LLM handles the rest)
     OFF_TOPIC_KEYWORDS = [
-        'weather', 'temperature', 'forecast', 'rain', 'snow',
-        'recipe', 'cooking', 'food', 'restaurant',
-        'movie', 'film', 'tv show', 'netflix',
-        'sports', 'game', 'score', 'team',
-        'health', 'medical', 'doctor', 'symptom',
-        'traffic', 'highway', 'i-90', 'freeway', 'driving',
-        'socks', 'clothing', 'shoes', 'fashion'
+        'weather', 'temperature', 'forecast',
+        'recipe', 'cooking', 'restaurant',
+        'movie', 'film', 'netflix',
+        'sports', 'game', 'score',
+        'health', 'medical', 'doctor',
+        'traffic', 'highway', 'driving'
     ]
     
     def __init__(self, **kwargs):
@@ -148,10 +147,11 @@ The assistant ONLY helps with FINANCE topics:
 
 CRITICAL: Pay attention to MEANING, not just keywords.
 - "socks" (clothing) ≠ "stocks" (investments)
+- "sneakers" (footwear) ≠ any finance topic
 - "traffic" (transportation) ≠ "trading" (markets)
 
 Examples:
-OFF_TOPIC: "best socks to buy" (clothing), "traffic on I-90" (transportation)
+OFF_TOPIC: "best socks to buy" (clothing), "running sneakers" (footwear), "traffic on I-90" (transportation)
 RELEVANT: "best stocks to buy" (investing), "trading strategies" (finance)
 INAPPROPRIATE: "evade taxes" (illegal)
 OUT_OF_SCOPE: "file my taxes" (needs professional)
@@ -177,34 +177,19 @@ Respond with ONLY one word: RELEVANT, OFF_TOPIC, INAPPROPRIATE, or OUT_OF_SCOPE"
         try:
             response = self.llm.invoke(messages)
             classification = response.content.strip().upper()
-            , use_llm_fallback: bool = True):
-        """
-        Initialize guardrails with custom validators.
-        
-        Args:
-            use_llm_fallback: If True, adds LLM-based validator as final safety layer
-                             for ambiguous queries. Uses OpenAI key but only for edge cases.
-        """
-        # Create validators
-        self.finance_validator = FinanceTopicValidator(on_fail="exception")
-        self.inappropriate_validator = InappropriateContentValidator(on_fail="exception")
-        self.scope_validator = ScopeValidator(on_fail="exception")
-        
-        validators = [
-            self.finance_validator,
-            self.inappropriate_validator,
-            self.scope_validator
-        ]
-        
-        # Add LLM validator as final safety layer for ambiguous cases
-        if use_llm_fallback:
-            self.llm_validator = LLMFinanceRelevanceValidator(on_fail="exception")
-            validators.append(self.llm_validator)
-        else:
-            self.llm_validator = None
-        
-        # Create guard with custom validators
-        self.guard = Guard().use_many(*validators    return value
+            
+            valid_classifications = ['RELEVANT', 'OFF_TOPIC', 'INAPPROPRIATE', 'OUT_OF_SCOPE']
+            if classification not in valid_classifications:
+                # Default to RELEVANT if unclear
+                return value
+            
+            if classification != 'RELEVANT':
+                self.classification = classification
+                raise ValidationError(
+                    f"LLM classified query as {classification}"
+                )
+            
+            return value
             
         except ValidationError:
             raise  # Re-raise validation errors
@@ -260,19 +245,24 @@ For specialized advice on taxes, legal matters, or detailed compliance issues, I
 Is there a general financial education topic I can help explain instead?"""
     }
 
-    def __init__(self):
-        """Initialize guardrails with custom validators."""
-        # Create validators
-        self.finance_validator = FinanceTopicValidator(on_fail="exception")
-        self.inappropriate_validator = InappropriateContentValidator(on_fail="exception")
-        self.scope_validator = ScopeValidator(on_fail="exception")
+    def __init__(self, use_llm_fallback: bool = True):
+        """
+        Initialize guardrails with custom validators.
         
-        # Create guard with custom validators
-        self.guard = Guard().use_many(
-            self.finance_validator,
-            self.inappropriate_validator,
-            self.scope_validator
-        )
+        Args:
+            use_llm_fallback: If True, adds LLM-based validator as final safety layer
+                             for ambiguous queries. Uses OpenAI key but only for edge cases.
+        """
+        # Create validators (don't use Guard wrapper, call directly)
+        self.finance_validator = FinanceTopicValidator()
+        self.inappropriate_validator = InappropriateContentValidator()
+        self.scope_validator = ScopeValidator()
+        
+        # Add LLM validator as final safety layer for ambiguous cases
+        if use_llm_fallback:
+            self.llm_validator = LLMFinanceRelevanceValidator()
+        else:
+            self.llm_validator = None
     
     def validate_query(self, query: str) -> Tuple[bool, Optional[str], Optional[str]]:
         """
@@ -283,7 +273,33 @@ Is there a general financial education topic I can help explain instead?"""
             
         Returns:
             Tuple of (is_valid, refusal_message, classification)
-            - is_valid: True if query should be proce (check in order)
+            - is_valid: True if query should be processed
+            - refusal_message: Message to show if invalid (None if valid)
+            - classification: RELEVANT, OFF_TOPIC, INAPPROPRIATE, or OUT_OF_SCOPE
+        """
+        try:
+            # Run validators in sequence
+            # Layer 1: Finance topic check
+            self.finance_validator.validate(query)
+            
+            # Layer 2: Inappropriate content check
+            self.inappropriate_validator.validate(query)
+            
+            # Layer 3: Scope check
+            self.scope_validator.validate(query)
+            
+            # Layer 4: LLM fallback (if enabled)
+            if self.llm_validator:
+                self.llm_validator.validate(query)
+            
+            # If all validations pass, query is relevant
+            return (True, None, "RELEVANT")
+            
+        except ValidationError as e:
+            # Check which validator failed and get its classification
+            classification = "OFF_TOPIC"  # default
+            
+            # Try to extract from validator instances (check in order)
             if hasattr(self.finance_validator, 'classification') and self.finance_validator.classification:
                 classification = self.finance_validator.classification
                 self.finance_validator.classification = None  # Reset for next use
@@ -295,22 +311,7 @@ Is there a general financial education topic I can help explain instead?"""
                 self.scope_validator.classification = None
             elif self.llm_validator and hasattr(self.llm_validator, 'classification') and self.llm_validator.classification:
                 classification = self.llm_validator.classification
-                self.llmNone, "RELEVANT")
-            
-        except ValidationError as e:
-            # Check which validator failed and get its classification
-            classification = "OFF_TOPIC"  # default
-            
-            # Try to extract from validator instances
-            if hasattr(self.finance_validator, 'classification') and self.finance_validator.classification:
-                classification = self.finance_validator.classification
-                self.finance_validator.classification = None  # Reset for next use
-            elif hasattr(self.inappropriate_validator, 'classification') and self.inappropriate_validator.classification:
-                classification = self.inappropriate_validator.classification
-                self.inappropriate_validator.classification = None
-            elif hasattr(self.scope_validator, 'classification') and self.scope_validator.classification:
-                classification = self.scope_validator.classification
-                self.scope_validator.classification = None
+                self.llm_validator.classification = None
             
             # Get appropriate refusal message
             refusal_message = self.REFUSAL_MESSAGES.get(
