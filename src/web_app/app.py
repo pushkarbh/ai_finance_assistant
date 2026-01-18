@@ -2775,22 +2775,25 @@ Return a JSON array of holdings. Each holding should have:
 - ticker: Stock ticker (e.g., "VOO") for stocks, or null for bonds/cash/other
 - name: Descriptive name for non-stock investments (e.g., "Treasury Bonds", "High Yield Savings", "CD 5-year")
 - shares: Number of shares for stocks, or dollar amount for bonds/cash/other
-- purchase_price: (optional) Purchase price per share for stocks, or yield/rate for bonds/CDs
+- purchase_price: (optional) Purchase price per share for stocks, OR interest rate/yield percentage for bonds/CDs/cash
+- purchase_date: (optional) Purchase date or year as string (e.g., "2015", "2019", "Jan 2020")
 
 Rules:
-1. For STOCKS/ETFs: type="stock", ticker="AAPL", shares=number of shares
-2. For BONDS: type="bond", ticker=null, name="Treasury Bonds" or "Corporate Bonds", shares=dollar amount
-3. For CASH: type="cash", ticker=null, name="HYSA" or "Savings Account", shares=dollar amount
-4. For CDs: type="cd", ticker=null, name="CD 1-year" or "Certificate of Deposit", shares=dollar amount
+1. For STOCKS/ETFs: type="stock", ticker="AAPL", shares=number of shares, purchase_price=price per share
+2. For BONDS: type="bond", ticker=null, name="Treasury Bonds" or "Corporate Bonds", shares=dollar amount, purchase_price=yield % if mentioned
+3. For CASH/HYSA: type="cash", ticker=null, name="HYSA" or "Savings Account", shares=dollar amount, purchase_price=interest rate % if mentioned (e.g., "4.5%" → 4.5), purchase_date=year/date if mentioned
+4. For CDs: type="cd", ticker=null, name="CD 1-year" or "Certificate of Deposit", shares=dollar amount, purchase_price=rate % if mentioned, purchase_date=year/date if mentioned
 5. For OTHER: type="other", ticker=null, name=description, shares=dollar amount
 6. DO NOT extract common words like "OF", "AT", "IN" as tickers
 7. Convert amounts: "50k"→50000, "1M"→1000000
-8. If no portfolio mentioned, return empty array []
+8. Extract percentage rates: "4.5%" → 4.5, "at 3.2%" → 3.2
+9. Extract purchase dates/years: "since 2015" → "2015", "from 2019" → "2019", "in Jan 2020" → "2020"
+10. If no portfolio mentioned, return empty array []
 
 Return ONLY the JSON array, no other text.
 
 Example outputs:
-[{{"type": "stock", "ticker": "VOO", "shares": 300, "purchase_price": 98}}, {{"type": "bond", "ticker": null, "name": "Treasury Bonds", "shares": 25000}}, {{"type": "cash", "ticker": null, "name": "HYSA", "shares": 50000}}]
+[{{"type": "stock", "ticker": "VOO", "shares": 300, "purchase_price": 98, "purchase_date": "2019"}}, {{"type": "bond", "ticker": null, "name": "Treasury Bonds", "shares": 25000, "purchase_price": 3.8}}, {{"type": "cash", "ticker": null, "name": "HYSA", "shares": 50000, "purchase_price": 4.5, "purchase_date": "2015"}}]
 []"""
     
     try:
@@ -2848,6 +2851,10 @@ Example outputs:
                 # Add purchase price if present
                 if 'purchase_price' in holding and holding['purchase_price']:
                     validated_holding['purchase_price'] = float(holding['purchase_price'])
+                
+                # Add purchase date if present
+                if 'purchase_date' in holding and holding['purchase_date']:
+                    validated_holding['purchase_date'] = str(holding['purchase_date'])
                 
                 validated_holdings.append(validated_holding)
             except (ValueError, TypeError):

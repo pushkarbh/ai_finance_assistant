@@ -209,12 +209,30 @@ class PortfolioAnalysisAgent(BaseAgent):
             name = holding.get('name', 'Unknown')
             amount = holding.get('shares', 0)  # For non-stocks, shares = dollar amount
             yield_rate = holding.get('purchase_price', 0)  # For non-stocks, purchase_price = yield/rate
+            purchase_date = holding.get('purchase_date', None)
             
-            # For non-stocks, current value = amount (no price appreciation)
-            current_value = amount
+            # Calculate current value with compounded interest if rate and date provided
             cost_basis = amount
-            gain_loss = 0  # No capital gains for cash/bonds (only interest)
-            gain_loss_pct = 0
+            if yield_rate > 0 and purchase_date:
+                # Extract year from purchase_date
+                import re
+                from datetime import datetime
+                year_match = re.search(r'\d{4}', str(purchase_date))
+                if year_match:
+                    purchase_year = int(year_match.group())
+                    current_year = datetime.now().year
+                    years_held = current_year - purchase_year
+                    
+                    # Calculate compounded value: FV = PV * (1 + r)^n
+                    current_value = amount * ((1 + yield_rate / 100) ** years_held)
+                else:
+                    current_value = amount
+            else:
+                # No rate or date provided, assume no growth
+                current_value = amount
+            
+            gain_loss = current_value - cost_basis
+            gain_loss_pct = (gain_loss / cost_basis * 100) if cost_basis else 0
             
             total_value += current_value
             total_cost += cost_basis
