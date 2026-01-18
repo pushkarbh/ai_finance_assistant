@@ -4,6 +4,7 @@ Analyzes user portfolios and provides educational insights.
 """
 
 import pandas as pd
+import re
 from typing import Any, Dict, List, Optional
 from datetime import datetime
 
@@ -209,15 +210,13 @@ class PortfolioAnalysisAgent(BaseAgent):
             name = holding.get('name', 'Unknown')
             amount = holding.get('shares', 0)  # For non-stocks, shares = dollar amount
             yield_rate = holding.get('purchase_price', 0)  # For non-stocks, purchase_price = yield/rate
-            purchase_date = holding.get('purchase_date', None)
+            purchase_date_value = holding.get('purchase_date', None)
             
             # Calculate current value with compounded interest if rate and date provided
             cost_basis = amount
-            if yield_rate > 0 and purchase_date:
+            if yield_rate > 0 and purchase_date_value:
                 # Extract year from purchase_date
-                import re
-                from datetime import datetime
-                year_match = re.search(r'\d{4}', str(purchase_date))
+                year_match = re.search(r'\d{4}', str(purchase_date_value))
                 if year_match:
                     purchase_year = int(year_match.group())
                     current_year = datetime.now().year

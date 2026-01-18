@@ -1147,13 +1147,20 @@ def display_portfolio_analysis(analysis: dict):
         st.caption("Number of different positions")
     with col4:
         div_score = analysis['diversification_score']
+        rating_abbrev = {
+            "Well Diversified": "Well Div.",
+            "Moderately Diversified": "Moderate",
+            "Somewhat Concentrated": "Concentrated",
+            "Highly Concentrated": "Very Conc."
+        }
+        short_rating = rating_abbrev.get(div_score['rating'], div_score['rating'])
         st.metric(
             "Diversification", 
-            div_score['rating'], 
+            short_rating, 
             f"{div_score['score']}/100",
-            help=f"Rating: {div_score['rating']} - Score: {div_score['score']}/100. Measures how well your portfolio is spread across sectors."
+            help=f"Rating: {div_score['rating']} (Score: {div_score['score']}/100). Measures how well your portfolio is spread across sectors."
         )
-        st.caption("How well your portfolio is spread across sectors")
+        st.caption(f"{div_score['rating']}")
 
     # Interpretation of overall performance
     if analysis['total_gain_loss_pct'] > 15:
