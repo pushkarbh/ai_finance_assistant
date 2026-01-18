@@ -58,20 +58,25 @@ class FinanceAssistantWorkflow:
 
         # Add nodes
         graph.add_node("route", self._route_node)
+        graph.add_node("process_agents", self._process_agents_node)
         graph.add_node("finance_qa", self._finance_qa_node)
         graph.add_node("portfolio_analysis", self._portfolio_analysis_node)
         graph.add_node("market_analysis", self._market_analysis_node)
         graph.add_node("goal_planning", self._goal_planning_node)
         graph.add_node("news_synthesizer", self._news_synthesizer_node)
+        graph.add_node("check_remaining", self._check_remaining_node)
         graph.add_node("synthesize", self._synthesize_node)
 
         # Set entry point
         graph.set_entry_point("route")
 
-        # Add conditional edges from router
+        # Route goes to process_agents which handles sequential execution
+        graph.add_edge("route", "process_agents")
+
+        # Process_agents selects next agent to run
         graph.add_conditional_edges(
-            "route",
-            self._select_agents,
+            "process_agents",
+            self._select_next_agent,
             {
                 "finance_qa": "finance_qa",
                 "portfolio_analysis": "portfolio_analysis",
@@ -82,9 +87,19 @@ class FinanceAssistantWorkflow:
             }
         )
 
-        # Add edges from agents to synthesize
+        # All agents go to check_remaining to see if more agents needed
         for agent_name in self.agents.keys():
-            graph.add_edge(agent_name, "synthesize")
+            graph.add_edge(agent_name, "check_remaining")
+
+        # Check_remaining either loops back to process_agents or goes to synthesize
+        graph.add_conditional_edges(
+            "check_remaining",
+            self._check_more_agents,
+            {
+                "process_agents": "process_agents",
+                "synthesize": "synthesize"
+            }
+        )
 
         # Add edge from synthesize to end
         graph.add_edge("synthesize", END)
@@ -109,10 +124,24 @@ class FinanceAssistantWorkflow:
 
         state["target_agents"] = target_agents
         state["query_type"] = query_type
+        state["processed_agents"] = []  # Track which agents have been processed
 
         return state
 
-    def _select_agents(self, state: AgentState) -> str:
+    def _process_agents_node(self, state: AgentState) -> AgentState:
+        """
+        Prepare to process the next agent.
+        
+        Args:
+            state: Current state
+            
+        Returns:
+            Updated state
+        """
+        # This node just passes through to allow conditional routing
+        return state
+
+    def _select_next_agent(self, state: AgentState) -> str:
         """
         Select which agent to run next based on routing.
 
@@ -123,16 +152,58 @@ class FinanceAssistantWorkflow:
             Next node name
         """
         target_agents = state.get("target_agents", [])
+        processed_agents = state.get("processed_agents", [])
 
-        if not target_agents:
+        # Find next unprocessed agent
+        remaining_agents = [a for a in target_agents if a not in processed_agents]
+
+        if not remaining_agents:
             return "synthesize"
 
-        # For simplicity, we'll run the first agent
-        # A more complex implementation could run multiple in parallel
-        current_agent = target_agents[0]
-        state["current_agent"] = current_agent
+        # Return the first remaining agent
+        next_agent = remaining_agents[0]
+        state["current_agent"] = next_agent
 
-        return current_agent
+        return next_agent
+
+    def _check_remaining_node(self, state: AgentState) -> AgentState:
+        """
+        Mark current agent as processed.
+        
+        Args:
+            state: Current state
+            
+        Returns:
+            Updated state
+        """
+        current_agent = state.get("current_agent")
+        if current_agent:
+            processed = state.get("processed_agents", [])
+            if current_agent not in processed:
+                processed.append(current_agent)
+                state["processed_agents"] = processed
+        
+        return state
+
+    def _check_more_agents(self, state: AgentState) -> str:
+        """
+        Check if there are more agents to process.
+        
+        Args:
+            state: Current state
+            
+        Returns:
+            Next node name
+        """
+        target_agents = state.get("target_agents", [])
+        processed_agents = state.get("processed_agents", [])
+        
+        remaining = [a for a in target_agents if a not in processed_agents]
+        
+        if remaining:
+            return "process_agents"
+        else:
+            return "synthesize"
 
     def _finance_qa_node(self, state: AgentState) -> AgentState:
         """Run the Finance Q&A agent."""
@@ -198,24 +269,44 @@ class FinanceAssistantWorkflow:
             return state
 
         # Multiple agents - synthesize their outputs
+        # Create a cohesive narrative that combines insights
         synthesis_parts = []
+        agent_names = list(agent_outputs.keys())
+        
         for agent_name, output in agent_outputs.items():
             if "response" in output:
-                synthesis_parts.append(f"From {agent_name}:\n{output['response']}")
+                # Add section header based on agent type
+                section_title = {
+                    'portfolio_analysis': '📊 Portfolio Analysis',
+                    'goal_planning': '🎯 Financial Planning & Goals',
+                    'market_analysis': '📈 Market Insights',
+                    'finance_qa': '💡 Financial Education',
+                    'news_synthesizer': '📰 Recent Market News'
+                }.get(agent_name, agent_name.replace('_', ' ').title())
+                
+                synthesis_parts.append(f"## {section_title}\n\n{output['response']}")
 
         if synthesis_parts:
+            # If we have multiple agents, use LLM to create a cohesive narrative
             combined = "\n\n---\n\n".join(synthesis_parts)
 
-            # Use LLM to create a cohesive response
-            synthesis_prompt = f"""Synthesize these responses from different financial experts into a single, cohesive response:
+            synthesis_prompt = f"""You are synthesizing insights from multiple financial analysis agents into a single, cohesive response for a user.
+
+The user received analysis from {len(agent_outputs)} specialized agents: {', '.join(agent_names)}.
+
+Here are their individual responses:
 
 {combined}
 
-Create a unified response that:
-1. Combines relevant information from all sources
-2. Avoids repetition
-3. Maintains a beginner-friendly tone
-4. Is well-organized with clear sections if needed"""
+Create a unified, well-structured response that:
+1. Starts with a brief overview connecting the different analyses
+2. Presents each agent's insights in clear, distinct sections with the headers provided
+3. Highlights important connections between the analyses (e.g., how portfolio performance relates to retirement goals)
+4. Maintains a helpful, educational tone suitable for beginners
+5. Ends with clear, actionable next steps or recommendations that tie everything together
+6. Keep all specific numbers, percentages, and data points from the original responses
+
+Format with markdown headers (##) for each section. Make it read as one coherent advisory session, not separate disconnected reports."""
 
             messages = [HumanMessage(content=synthesis_prompt)]
             synthesized = self.llm.invoke(messages)

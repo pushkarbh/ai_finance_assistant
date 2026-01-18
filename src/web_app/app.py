@@ -519,8 +519,19 @@ def display_agents_capsules(agents: List[str]) -> None:
         for name in agent_names
     ])
 
+    # Show special badge for multi-agent collaboration
+    if len(agents) > 1:
+        multi_agent_badge = (
+            f'<span style="display: inline-block; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); '
+            f'color: white; padding: 4px 12px; border-radius: 16px; font-size: 12px; font-weight: 600; '
+            f'margin-right: 8px; margin-bottom: 4px;">🤝 Multi-Agent Collaboration</span>'
+        )
+        label_text = f'{multi_agent_badge}<span style="color: #666; font-size: 13px; margin-right: 8px;">{len(agents)} agents worked together:</span>'
+    else:
+        label_text = '<span style="color: #666; font-size: 13px; margin-right: 8px;">Agent used:</span>'
+
     # Use st.write with HTML
-    html_content = f'<div style="margin-top: 8px; margin-bottom: 4px;"><span style="color: #666; font-size: 13px; margin-right: 8px;">Agents used:</span>{capsules_html}</div>'
+    html_content = f'<div style="margin-top: 8px; margin-bottom: 4px;">{label_text}{capsules_html}</div>'
     st.write(html_content, unsafe_allow_html=True)
 
 
