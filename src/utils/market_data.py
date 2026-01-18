@@ -308,6 +308,22 @@ def calculate_returns(
                 returns[period] = None
         except Exception:
             returns[period] = None
+    
+    # Add YTD calculation
+    try:
+        current_year = datetime.now().year
+        start_of_year = f"{current_year}-01-01"
+        hist_ytd = get_historical_data(ticker, period='ytd')
+        
+        if not hist_ytd.empty and len(hist_ytd) > 0:
+            start_price = hist_ytd['Close'].iloc[0]
+            end_price = hist_ytd['Close'].iloc[-1]
+            ytd_return = ((end_price - start_price) / start_price) * 100
+            returns['ytd'] = round(ytd_return, 2)
+        else:
+            returns['ytd'] = None
+    except Exception:
+        returns['ytd'] = None
 
     return returns
 

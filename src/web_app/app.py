@@ -261,12 +261,30 @@ def load_economic_indicators():
     
     # 1. Inflation (using TIPS ETF as proxy)
     try:
+        tip_data = get_stock_price('TIP')
         tip_returns = calculate_returns('TIP')
         tip_ytd = parse_return(tip_returns.get('ytd', 0))
-        status = '🟢 Low' if tip_ytd < 2 else '🟡 Moderate' if tip_ytd < 5 else '🔴 High'
+        tip_1yr = parse_return(tip_returns.get('1y', 0))
+        
+        # Fallback: YTD → 1yr → current price only
+        if tip_ytd != -999:
+            perf_str = f"{tip_ytd:+.2f}% YTD"
+            perf_val = tip_ytd
+        elif tip_1yr != -999:
+            perf_str = f"{tip_1yr:+.2f}% (1yr)"
+            perf_val = tip_1yr
+        else:
+            perf_str = ""
+            perf_val = 0
+        
+        status = '🟢 Low' if perf_val < 2 else '🟡 Moderate' if perf_val < 5 else '🔴 High'
+        value_display = f"${tip_data.get('price', 0):.2f}"
+        if perf_str:
+            value_display += f" ({perf_str})"
+        
         economic_data.append({
             'Indicator': '📈 Inflation Expectations (TIP ETF)',
-            'Value': f"{tip_ytd:+.2f}% YTD",
+            'Value': value_display,
             'Significance': 'TIPS performance reflects inflation expectations; Fed targets ~2% inflation',
             'Status': status
         })
@@ -304,10 +322,27 @@ def load_economic_indicators():
         dxy_data = get_stock_price('DX-Y.NYB')
         dxy_returns = calculate_returns('DX-Y.NYB')
         ytd = parse_return(dxy_returns.get('ytd', 0))
-        status = '🟢 Strengthening' if ytd > 0 else '🔴 Weakening'
+        yr1 = parse_return(dxy_returns.get('1y', 0))
+        
+        # Fallback: YTD → 1yr → current price only
+        if ytd != -999:
+            perf_str = f"{ytd:+.1f}% YTD"
+            perf_val = ytd
+        elif yr1 != -999:
+            perf_str = f"{yr1:+.1f}% (1yr)"
+            perf_val = yr1
+        else:
+            perf_str = ""
+            perf_val = 0
+        
+        status = '🟢 Strengthening' if perf_val > 0 else '🔴 Weakening' if perf_val < 0 else '🟡 Stable'
+        value_display = f"{dxy_data.get('price', 0):.2f}"
+        if perf_str:
+            value_display += f" ({perf_str})"
+        
         economic_data.append({
             'Indicator': '💵 US Dollar Index',
-            'Value': f"{dxy_data.get('price', 0):.2f} ({ytd:+.1f}% YTD)",
+            'Value': value_display,
             'Significance': 'Dollar strength affects exports, imports, and inflation',
             'Status': status
         })
@@ -319,10 +354,27 @@ def load_economic_indicators():
         oil_data = get_stock_price('CL=F')
         oil_returns = calculate_returns('CL=F')
         ytd = parse_return(oil_returns.get('ytd', 0))
-        status = '🟢 Stable' if abs(ytd) < 15 else '🟡 Volatile'
+        yr1 = parse_return(oil_returns.get('1y', 0))
+        
+        # Fallback: YTD → 1yr → current price only
+        if ytd != -999:
+            perf_str = f"{ytd:+.1f}% YTD"
+            perf_val = ytd
+        elif yr1 != -999:
+            perf_str = f"{yr1:+.1f}% (1yr)"
+            perf_val = yr1
+        else:
+            perf_str = ""
+            perf_val = 0
+        
+        status = '🟢 Stable' if abs(perf_val) < 15 else '🟡 Volatile'
+        value_display = f"${oil_data.get('price', 0):.2f}/barrel"
+        if perf_str:
+            value_display += f" ({perf_str})"
+        
         economic_data.append({
             'Indicator': '🛢️ Crude Oil (WTI)',
-            'Value': f"${oil_data.get('price', 0):.2f}/barrel ({ytd:+.1f}% YTD)",
+            'Value': value_display,
             'Significance': 'Energy costs impact inflation and consumer spending',
             'Status': status
         })
@@ -334,11 +386,92 @@ def load_economic_indicators():
         gold_data = get_stock_price('GC=F')
         gold_returns = calculate_returns('GC=F')
         ytd = parse_return(gold_returns.get('ytd', 0))
-        status = '🟢 Rising' if ytd > 5 else '🔴 Falling' if ytd < -5 else '🟡 Stable'
+        yr1 = parse_return(gold_returns.get('1y', 0))
+        
+        # Fallback: YTD → 1yr → current price only
+        if ytd != -999:
+            perf_str = f"{ytd:+.1f}% YTD"
+            perf_val = ytd
+        elif yr1 != -999:
+            perf_str = f"{yr1:+.1f}% (1yr)"
+            perf_val = yr1
+        else:
+            perf_str = ""
+            perf_val = 0
+        
+        status = '🟢 Rising' if perf_val > 5 else '🔴 Falling' if perf_val < -5 else '🟡 Stable'
+        value_display = f"${gold_data.get('price', 0):,.2f}/oz"
+        if perf_str:
+            value_display += f" ({perf_str})"
+        
         economic_data.append({
             'Indicator': '🥇 Gold Price',
-            'Value': f"${gold_data.get('price', 0):,.2f}/oz ({ytd:+.1f}% YTD)",
+            'Value': value_display,
             'Significance': 'Safe haven asset; rises during uncertainty or inflation fears',
+            'Status': status
+        })
+    except:
+        pass
+    
+    # 7. Silver (commodity)
+    try:
+        silver_data = get_stock_price('SI=F')
+        silver_returns = calculate_returns('SI=F')
+        ytd = parse_return(silver_returns.get('ytd', 0))
+        yr1 = parse_return(silver_returns.get('1y', 0))
+        
+        # Fallback: YTD → 1yr → current price only
+        if ytd != -999:
+            perf_str = f"{ytd:+.1f}% YTD"
+            perf_val = ytd
+        elif yr1 != -999:
+            perf_str = f"{yr1:+.1f}% (1yr)"
+            perf_val = yr1
+        else:
+            perf_str = ""
+            perf_val = 0
+        
+        status = '🟢 Rising' if perf_val > 5 else '🔴 Falling' if perf_val < -5 else '🟡 Stable'
+        value_display = f"${silver_data.get('price', 0):,.2f}/oz"
+        if perf_str:
+            value_display += f" ({perf_str})"
+        
+        economic_data.append({
+            'Indicator': '🥈 Silver Price',
+            'Value': value_display,
+            'Significance': 'Industrial & precious metal; tracks economic activity and inflation',
+            'Status': status
+        })
+    except:
+        pass
+    
+    # 8. Natural Gas (commodity)
+    try:
+        ng_data = get_stock_price('NG=F')
+        ng_returns = calculate_returns('NG=F')
+        ytd = parse_return(ng_returns.get('ytd', 0))
+        yr1 = parse_return(ng_returns.get('1y', 0))
+        
+        # Fallback: YTD → 1yr → current price only
+        if ytd != -999:
+            perf_str = f"{ytd:+.1f}% YTD"
+            perf_val = ytd
+        elif yr1 != -999:
+            perf_str = f"{yr1:+.1f}% (1yr)"
+            perf_val = yr1
+        else:
+            perf_str = ""
+            perf_val = 0
+        
+        status = '🟢 Stable' if abs(perf_val) < 20 else '🟡 Volatile'
+        value_display = f"${ng_data.get('price', 0):.2f}/MMBtu"
+        if perf_str:
+            value_display += f" ({perf_str})"
+        
+        economic_data.append({
+            'Indicator': '🔥 Natural Gas',
+            'Value': value_display,
+            'Significance': 'Energy commodity; affects heating costs and electricity prices',
             'Status': status
         })
     except:
