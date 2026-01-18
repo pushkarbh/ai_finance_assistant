@@ -5,6 +5,10 @@ Coordinates agents to handle user queries with shared state.
 
 from typing import Any, Dict, List, Optional, Literal
 import uuid
+import hashlib
+import json
+import time
+import logging
 
 from langgraph.graph import StateGraph, END
 from langchain_core.messages import HumanMessage, AIMessage
@@ -20,6 +24,12 @@ from src.agents import (
     GoalPlanningAgent,
     NewsSynthesizerAgent
 )
+
+# Set up logger for cache debugging
+logger = logging.getLogger(__name__)
+
+# Track cache statistics
+_CACHE_STATS = {"hits": 0, "misses": 0}
 
 
 class FinanceAssistantWorkflow:
@@ -322,7 +332,7 @@ def process_query(
     goals: Optional[List[Dict]] = None
 ) -> Dict[str, Any]:
     """
-    Process a user query through the workflow.
+    Process a user query through the workflow with smart caching.
 
     Args:
         query: User's query
@@ -331,7 +341,125 @@ def process_query(
         goals: Optional goals data
 
     Returns:
+        Response dict with added metadata:
+        - _cache_hit: bool (True if response was cached)
+        - _response_time: float (time in seconds)
+    """
+    start_time = time.time()
+    
+    # Try to use cached version if Streamlit is available
+    try:
+        import streamlit as st
+        
+        # Check if this will be a cache hit by testing the cache key
+        cache_key = _create_cache_key(query, portfolio, goals)
+        
+        # Call cached version
+        cached_func = _get_cached_process_query()
+        
+        # Mark the start time before calling
+        call_start = time.time()
+        result = cached_func(query, session_id, portfolio, goals)
+        call_duration = time.time() - call_start
+        
+        # If call was very fast (<100ms), it was likely cached
+        is_cache_hit = call_duration < 0.1
+        
+        if is_cache_hit:
+            _CACHE_STATS["hits"] += 1
+            print(f"✅ CACHE HIT for query: '{query[:60]}...' ({call_duration*1000:.1f}ms)")
+        else:
+            _CACHE_STATS["misses"] += 1
+            print(f"❌ CACHE MISS for query: '{query[:60]}...' ({call_duration:.2f}s)")
+        
+        # Add cache metadata to result
+        if isinstance(result, dict):
+            result['_cache_hit'] = is_cache_hit
+            result['_response_time'] = call_duration
+            result['_cache_stats'] = dict(_CACHE_STATS)
+        
+        return result
+        
+    except (ImportError, Exception) as e:
+        # Fall back to direct execution if Streamlit not available
+        print(f"⚠️ Cache not available, using direct execution: {e}")
+        workflow = get_workflow()
+        result = workflow.run(query, session_id, portfolio, goals)
+        
+        if isinstance(result, dict):
+            result['_cache_hit'] = False
+            result['_response_time'] = time.time() - start_time
+        
+        return result
+
+
+def _get_cached_process_query():
+    """
+    Get the cached version of process_query, applying decorator lazily.
+    This prevents Streamlit from being triggered at import time.
+    """
+    global _CACHED_FUNCTION
+    if _CACHED_FUNCTION is None:
+        import streamlit as st
+        _CACHED_FUNCTION = st.cache_data(ttl=900, show_spinner=False)(_process_query_impl)
+    return _CACHED_FUNCTION
+
+
+# Global to hold the cached function
+_CACHED_FUNCTION = None
+
+
+def _process_query_impl(
+    query: str,
+    session_id: Optional[str] = None,
+    portfolio: Optional[Dict] = None,
+    goals: Optional[List[Dict]] = None
+) -> Dict[str, Any]:
+    """
+    Implementation of query processing (will be wrapped with cache decorator).
+    
+    Args:
+        query: User's query
+        session_id: Optional session ID
+        portfolio: Optional portfolio data
+        goals: Optional goals data
+        
+    Returns:
         Response dict
     """
     workflow = get_workflow()
     return workflow.run(query, session_id, portfolio, goals)
+
+
+def _create_cache_key(query: str, portfolio: Optional[Dict], goals: Optional[List[Dict]]) -> str:
+    """
+    Create a unique cache key based on query, portfolio, and goals.
+    
+    Args:
+        query: User's query
+        portfolio: Portfolio data (if any)
+        goals: Goals data (if any)
+        
+    Returns:
+        MD5 hash as cache key
+    """
+    # Normalize query (lowercase, strip whitespace)
+    normalized_query = query.lower().strip()
+    
+    # Create hash components
+    components = [normalized_query]
+    
+    # Add portfolio hash if present
+    if portfolio:
+        # Sort keys for consistent hashing
+        portfolio_str = json.dumps(portfolio, sort_keys=True)
+        components.append(f"portfolio:{hashlib.md5(portfolio_str.encode()).hexdigest()[:8]}")
+    
+    # Add goals hash if present
+    if goals:
+        goals_str = json.dumps(goals, sort_keys=True)
+        components.append(f"goals:{hashlib.md5(goals_str.encode()).hexdigest()[:8]}")
+    
+    # Combine all components
+    cache_key = "|".join(components)
+    return cache_key

@@ -1,4 +1,92 @@
-# Smart Tab Switching Feature
+# Smart Tab Switching & Environment Fixes
+
+## Recent Issues Resolved (January 2026)
+
+### 1. Venv Not Being Used
+**Problem**: When running `streamlit run`, it was using the base conda Python instead of the venv.
+
+**Solution**: Created `run_app.sh` script that:
+- Activates the venv
+- Runs Streamlit using `python -m streamlit` (ensures venv Python is used)
+- Properly manages the environment
+
+**Usage**:
+```bash
+./run_app.sh
+```
+
+### 2. StreamlitAPIException: set_page_config() Error
+**Problem**: `st.set_page_config()` was being called after other Streamlit commands, causing:
+```
+StreamlitAPIException: set_page_config() can only be called once per app page, 
+and must be called as the first Streamlit command in your script.
+```
+
+**Root Cause**: The `@st.cache_data` decorator in `graph.py` was being evaluated at import time (when `from src.workflow import process_query` was executed), which triggered Streamlit before `set_page_config()`.
+
+**Solution**: 
+1. Moved `st.set_page_config()` to be the FIRST command in app.py (before imports)
+2. Refactored caching in `graph.py` to use lazy decorator application:
+   - Removed direct `import streamlit` at module level
+   - Created `_get_cached_process_query()` that applies the decorator at runtime
+   - Falls back to non-cached execution if Streamlit isn't available
+
+**Code Changes**:
+
+**app.py**:
+```python
+import streamlit as st
+# ... other imports
+
+# Page configuration - MUST be first Streamlit command
+st.set_page_config(...)
+
+# Import our modules AFTER set_page_config
+from src.workflow import process_query
+```
+
+**graph.py**:
+```python
+# Removed: import streamlit as st at top
+
+def process_query(...):
+    try:
+        import streamlit as st
+        return _get_cached_process_query()(...)
+    except:
+        # Fallback without caching
+        workflow = get_workflow()
+        return workflow.run(...)
+
+def _get_cached_process_query():
+    """Lazily apply cache decorator"""
+    global _CACHED_FUNCTION
+    if _CACHED_FUNCTION is None:
+        import streamlit as st
+        _CACHED_FUNCTION = st.cache_data(ttl=900)(...)
+    return _CACHED_FUNCTION
+```
+
+## Running the App
+Always use the run script to ensure proper environment:
+```bash
+./run_app.sh
+```
+
+Or manually:
+```bash
+source venv/bin/activate
+python -m streamlit run src/web_app/app.py --server.port 8502
+```
+
+**Do NOT use** (will use wrong Python):
+```bash
+streamlit run src/web_app/app.py  # ❌ Uses conda Python
+```
+
+---
+
+# Original Documentation: Smart Tab Switching Feature
 
 ## Overview
 

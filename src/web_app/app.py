@@ -21,7 +21,15 @@ import time
 import threading
 from contextlib import contextmanager
 
-# Import our modules
+# Page configuration - MUST be first Streamlit command
+st.set_page_config(
+    page_title="AI Finance Assistant",
+    page_icon="📈",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# Import our modules AFTER set_page_config to avoid triggering Streamlit commands
 from src.workflow import process_query
 from src.utils.market_data import (
     get_market_summary,
@@ -33,15 +41,6 @@ from src.utils.market_data import (
 )
 from src.agents import PortfolioAnalysisAgent
 from src.web_app.financial_tips import get_random_tip
-
-
-# Page configuration
-st.set_page_config(
-    page_title="AI Finance Assistant",
-    page_icon="📈",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
 
 
 def init_session_state():
@@ -667,33 +666,27 @@ def main():
     # We do this BEFORE rendering tabs so navigation works
     if st.session_state.get('navigate_to_tab') is not None:
         st.session_state.active_tab = st.session_state.navigate_to_tab
-        st.session_state.tab_selector = st.session_state.navigate_to_tab  # Also update the widget key
         st.session_state.navigate_to_tab = None
         st.session_state.pending_tab_action = None  # Clear the action
-
-    # Initialize tab_selector if it doesn't exist
-    if 'tab_selector' not in st.session_state:
-        st.session_state.tab_selector = st.session_state.active_tab
 
     # Custom tab selector for programmatic switching
     tab_names = ["💬 Chat", "📊 Portfolio", "📈 Market", "🎯 Goals"]
 
-    # Use pills (segmented control style) - more reliable than radio for programmatic switching
-    def on_tab_change():
-        """Callback when tab is manually changed."""
-        st.session_state.active_tab = st.session_state.tab_selector
-        st.session_state.pending_tab_action = None  # Clear pending action
-
-    # Use radio with callback - the key links to session state
-    st.radio(
+    # Use radio WITHOUT callback to avoid circular state issues
+    # Just use index parameter to control selection
+    selected_tab = st.radio(
         "Navigate:",
         options=range(len(tab_names)),
         format_func=lambda x: tab_names[x],
         horizontal=True,
         label_visibility="collapsed",
-        key="tab_selector",
-        on_change=on_tab_change
+        index=st.session_state.active_tab
     )
+    
+    # Update active_tab if user manually changed selection
+    if selected_tab != st.session_state.active_tab:
+        st.session_state.active_tab = selected_tab
+        st.rerun()
 
     # Render the selected tab
     st.markdown("---")
@@ -898,6 +891,17 @@ def render_chat_tab():
                     )
                     response = result.get("response", "I couldn't generate a response. Please try again.")
 
+                    # Check if response was cached
+                    cache_hit = result.get("_cache_hit", False)
+                    response_time = result.get("_response_time", 0)
+                    cache_stats = result.get("_cache_stats", {})
+                    
+                    # Show cache status indicator
+                    if cache_hit:
+                        st.caption(f"⚡ Cached response ({response_time*1000:.0f}ms) • Total cache hits: {cache_stats.get('hits', 0)}")
+                    else:
+                        st.caption(f"🔄 New response ({response_time:.1f}s) • Total cache misses: {cache_stats.get('misses', 0)}")
+
                     # Collect metadata for this response
                     agents_used = result.get("agents_used", [])
                     sources = result.get("sources", [])
@@ -988,6 +992,17 @@ def render_chat_tab():
                         goals=st.session_state.goals
                     )
                     response = result.get("response", "I couldn't generate a response. Please try again.")
+                    
+                    # Check if response was cached
+                    cache_hit = result.get("_cache_hit", False)
+                    response_time = result.get("_response_time", 0)
+                    cache_stats = result.get("_cache_stats", {})
+                    
+                    # Show cache status indicator
+                    if cache_hit:
+                        st.caption(f"⚡ Cached response ({response_time*1000:.0f}ms) • Total cache hits: {cache_stats.get('hits', 0)}")
+                    else:
+                        st.caption(f"🔄 New response ({response_time:.1f}s) • Total cache misses: {cache_stats.get('misses', 0)}")
                     
                     # Collect metadata for this response
                     agents_used = result.get("agents_used", [])
