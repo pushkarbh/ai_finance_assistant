@@ -1405,21 +1405,29 @@ def render_market_tab():
         except Exception as e:
             st.error(f"Error loading market data: {str(e)}")
 
-    # Enriched Market Overview - Collapsible with lazy loading
-    with st.expander("📊 **Detailed Market Insights** (Top Performers, Trends & News)", expanded=False):
-        # Initialize session state for insights loading
-        if 'market_insights_loaded' not in st.session_state:
-            st.session_state.market_insights_loaded = False
+    # Initialize session state for insights loading
+    if 'market_insights_loaded' not in st.session_state:
+        st.session_state.market_insights_loaded = False
+    
+    # Show button at top level if data is not loaded
+    if not st.session_state.market_insights_loaded:
+        st.markdown("---")
+        st.info("💡 Click below to load detailed market insights (stocks, indices, sectors, economic indicators & news)")
+        st.caption("🔄 Data is cached for 30 minutes for faster subsequent loads")
+        if st.button("🚀 Load Market Insights", key="load_insights_btn", type="primary"):
+            st.session_state.market_insights_loaded = True
+            st.rerun()
+    
+    # Show expandable section if data is loaded
+    if st.session_state.market_insights_loaded:
+        # Auto-expand on first load, then user controls it
+        initial_expand = st.session_state.get('market_insights_auto_expanded', True)
         
-        # Show a button to load insights (this prevents auto-loading)
-        if not st.session_state.market_insights_loaded:
-            st.info("💡 Click below to load detailed market insights (stocks, indices, sectors, economic indicators & news)")
-            st.caption("🔄 Data is cached for 30 minutes for faster subsequent loads")
-            if st.button("🚀 Load Market Insights", key="load_insights_btn"):
-                st.session_state.market_insights_loaded = True
-                st.rerun()
-        
-        if st.session_state.market_insights_loaded:
+        with st.expander("📊 **Detailed Market Insights** (Top Performers, Trends & News)", expanded=initial_expand):
+            # Mark as no longer auto-expanding after first view
+            if initial_expand:
+                st.session_state.market_insights_auto_expanded = False
+            
             # Add a refresh button
             col1, col2 = st.columns([6, 1])
             with col2:
@@ -2620,6 +2628,10 @@ def show_tab_navigation_link(agents_used: List[str], query: str, result: dict):
             else:
                 link_text = "Plan your goal"
                 message_text = "Want to visualize your financial goal with detailed projections?"
+
+    elif primary_agent == 'news_synthesizer':
+        link_text = "View latest market news"
+        message_text = "Want to see market insights, trends, and recent news?"
 
     # Store preload data
     st.session_state.preload_data = preload_data
