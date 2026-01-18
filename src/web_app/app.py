@@ -96,6 +96,17 @@ def smart_spinner():
         status_placeholder.empty()
 
 
+def escape_dollar_signs(text: str) -> str:
+    """
+    Escape dollar signs in text to prevent LaTeX math rendering in Streamlit.
+    Streamlit markdown interprets $...$ as LaTeX math, which causes formatting issues.
+    """
+    if not text:
+        return text
+    # Replace single $ with \$ to escape it
+    return text.replace('$', r'\$')
+
+
 def parse_return(val):
     """Helper function to parse return values from strings or floats."""
     if val is None or val == 'N/A':
@@ -598,7 +609,7 @@ def render_chat_tab():
         if (idx + 1) < len(st.session_state.chat_history):
             assistant_msg = st.session_state.chat_history[idx + 1]
             with st.chat_message("assistant"):
-                st.markdown(assistant_msg.get("content", ""))
+                st.markdown(escape_dollar_signs(assistant_msg.get("content", "")))
                 
                 # Show metadata if available
                 metadata = assistant_msg.get("metadata", {})
@@ -769,7 +780,7 @@ def render_chat_tab():
                     })
 
                     # Display response
-                    st.markdown(response)
+                    st.markdown(escape_dollar_signs(response))
 
                     # Show inline citations if sources exist
                     if sources:
@@ -860,7 +871,7 @@ def render_chat_tab():
                     })
 
                     # Display response
-                    st.markdown(response)
+                    st.markdown(escape_dollar_signs(response))
 
                     # Show inline citations if sources exist
                     sources = result.get("sources", [])
@@ -1264,6 +1275,13 @@ def display_portfolio_analysis(analysis: dict):
             'gain_loss_pct': 'Gain %',
             'sector': 'Sector'
         })
+        
+        # Format monetary values with 2 decimals
+        display_df['Price'] = display_df['Price'].apply(lambda x: f"${x:,.2f}")
+        display_df['Value'] = display_df['Value'].apply(lambda x: f"${x:,.2f}")
+        display_df['Gain/Loss'] = display_df['Gain/Loss'].apply(lambda x: f"${x:,.2f}" if x >= 0 else f"-${abs(x):,.2f}")
+        display_df['Gain %'] = display_df['Gain %'].apply(lambda x: f"{x:.2f}%")
+        
         st.dataframe(display_df, use_container_width=True)
 
         # Add insights about best/worst performers
