@@ -86,7 +86,7 @@ def smart_spinner():
     # Show status with tip - st.status has built-in spinner animation
     with status_placeholder.container():
         status = st.status("🤔 **Analyzing your question...**", expanded=True, state="running")
-        status.write("**💡 While you wait, here's a financial tip:**")
+        status.write("**While you wait, here's a financial tip:**")
         status.info(tip)
 
     try:
