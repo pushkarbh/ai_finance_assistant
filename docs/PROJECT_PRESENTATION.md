@@ -148,7 +148,7 @@ The **Query Router** intelligently determines which agent(s) to invoke:
 ┌─────────────────────────────────────────────────────────────┐
 │  AI Finance Assistant                                       │
 ├─────────────────────────────────────────────────────────────┤
-│  [💬 Chat] [📊 Portfolio] [📈 Market Analysis] [🎯 Goals]  │
+│  [💬 Chat] [📊 Portfolio] [📈 Market Analysis] [🎯 Goals]    │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
 │  [Active Tab Content]                                       │
@@ -226,12 +226,12 @@ The **Query Router** intelligently determines which agent(s) to invoke:
 ### High-Level Architecture
 
 ```
-┌───────────────────────────────────────────────────────────────┐
-│                    PRESENTATION LAYER                         │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐     │
-│  │   Chat   │  │Portfolio │  │  Market  │  │  Goals   │     │
-│  │   Tab    │  │   Tab    │  │   Tab    │  │   Tab    │     │
-│  └────┬─────┘  └────┬─────┘  └────┬─────┘  └────┬─────┘     │
+┌──────────────────────────────────────────────────────────────┐
+│                    PRESENTATION LAYER                        │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐      │
+│  │   Chat   │  │Portfolio │  │  Market  │  │  Goals   │      │
+│  │   Tab    │  │   Tab    │  │   Tab    │  │   Tab    │      │
+│  └────┬─────┘  └────┬─────┘  └────┬─────┘  └────┬─────┘      │
 └───────┼─────────────┼─────────────┼─────────────┼────────────┘
         │             │             │             │
         └─────────────┴─────────────┴─────────────┘
@@ -239,8 +239,8 @@ The **Query Router** intelligently determines which agent(s) to invoke:
 ┌─────────────────────▼─────────────────────────────────────────┐
 │                  GUARDRAILS LAYER                             │
 │  ┌─────────────────────────────────────────────────────────┐  │
-│  │  Layer 1: FinanceTopic  │  Layer 2: Inappropriate      │  │
-│  │  Layer 3: Scope         │  Layer 4: LLM Relevance      │  │
+│  │  Layer 1: FinanceTopic  │  Layer 2: Inappropriate       │  │
+│  │  Layer 3: Scope         │  Layer 4: LLM Relevance       │  │
 │  └─────────────────────────────────────────────────────────┘  │
 └───────────────────────────┬───────────────────────────────────┘
                             │
@@ -248,41 +248,41 @@ The **Query Router** intelligently determines which agent(s) to invoke:
 │                  ORCHESTRATION LAYER                          │
 │  ┌──────────────────────────────────────────────────────────┐ │
 │  │              LangGraph StateGraph Workflow               │ │
-│  │  ┌────────┐    ┌──────────────────┐    ┌─────────────┐ │ │
-│  │  │ Route  │───▶│  Agent Selector  │───▶│  Synthesize │ │ │
-│  │  │  Node  │    │  (Conditional)   │    │    Node     │ │ │
-│  │  └────────┘    └──────────────────┘    └─────────────┘ │ │
-│  │       │              │  │  │  │  │             │        │ │
-│  │       │         ┌────┘  │  │  │  └────┐        │        │ │
-│  │       │         ▼       ▼  ▼  ▼       ▼        │        │ │
-│  │       │      ┌───┐ ┌───┐┌───┐┌───┐ ┌───┐      │        │ │
-│  │       │      │QA │ │Prt││Mkt││Gol│ │Nws│      │        │ │
-│  │       │      └───┘ └───┘└───┘└───┘ └───┘      │        │ │
-│  │       └────────────────────────────────────────┘        │ │
+│  │  ┌────────┐    ┌──────────────────┐    ┌─────────────┐   │ │
+│  │  │ Route  │───▶│  Agent Selector  │───▶│  Synthesize │   │ │
+│  │  │  Node  │    │  (Conditional)   │    │    Node     │   │ │
+│  │  └────────┘    └──────────────────┘    └─────────────┘   │ │
+│  │       │              │  │  │  │  │             │         │ │
+│  │       │         ┌────┘  │  │  │  └────┐        │         │ │
+│  │       │         ▼       ▼  ▼  ▼       ▼        │         │ │
+│  │       │      ┌───┐ ┌───┐┌───┐┌───┐ ┌───┐       │         │ │
+│  │       │      │QA │ │Prt││Mkt││Gol│ │Nws│       │         │ │
+│  │       │      └───┘ └───┘└───┘└───┘ └───┘       │         │ │
+│  │       └────────────────────────────────────────┘         │ │
 │  └──────────────────────────────────────────────────────────┘ │
 └───────────────────────────┬───────────────────────────────────┘
                             │
 ┌───────────────────────────▼───────────────────────────────────┐
 │                      AGENT LAYER                              │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐     │
-│  │Finance QA│  │Portfolio │  │ Market   │  │   Goal   │     │
-│  │  Agent   │  │ Analysis │  │ Analysis │  │ Planning │     │
-│  │          │  │  Agent   │  │  Agent   │  │  Agent   │     │
-│  └────┬─────┘  └────┬─────┘  └────┬─────┘  └────┬─────┘     │
-│       │             │             │             │            │
-│  ┌────▼──────────────────────────────────────────▼─────┐     │
-│  │           News Synthesizer Agent                    │     │
-│  └─────────────────────────────────────────────────────┘     │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐       │
+│  │Finance QA│  │Portfolio │  │ Market   │  │   Goal   │       │
+│  │  Agent   │  │ Analysis │  │ Analysis │  │ Planning │       │
+│  │          │  │  Agent   │  │  Agent   │  │  Agent   │       │
+│  └────┬─────┘  └────┬─────┘  └────┬─────┘  └────┬─────┘       │
+│       │             │             │             │             │
+│  ┌────▼──────────────────────────────────────────▼─────┐      │
+│  │           News Synthesizer Agent                    │      │
+│  └─────────────────────────────────────────────────────┘      │
 └───────────────────────────┬───────────────────────────────────┘
                             │
 ┌───────────────────────────▼───────────────────────────────────┐
 │                       DATA LAYER                              │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐   │
-│  │    FAISS    │  │  yFinance   │  │   OpenAI GPT-4o     │   │
-│  │ Vector Store│  │   Market    │  │      mini LLM       │   │
-│  │  (1,973     │  │    Data     │  │                     │   │
-│  │  chunks)    │  │     API     │  │                     │   │
-│  └─────────────┘  └─────────────┘  └─────────────────────┘   │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐    │
+│  │    FAISS    │  │  yFinance   │  │   OpenAI GPT-4o     │    │
+│  │ Vector Store│  │   Market    │  │      mini LLM       │    │
+│  │  (1,973     │  │    Data     │  │                     │    │
+│  │  chunks)    │  │     API     │  │                     │    │
+│  └─────────────┘  └─────────────┘  └─────────────────────┘    │
 └───────────────────────────────────────────────────────────────┘
 ```
 
@@ -345,11 +345,73 @@ graph.add_edge("synthesize", END)
 
 ## State Management & Agent Collaboration
 
+### LangGraph State Architecture
+
+The **AgentState** is the backbone of the multi-agent workflow, serving as a shared memory system that enables seamless collaboration between all agents. Understanding how state is managed is crucial to understanding the system's orchestration.
+
+#### What is the State?
+
+The state is a **TypedDict** that acts as:
+- **Shared Memory** - All agents read from and write to the same state object
+- **Conversation Context** - Maintains full message history and current query
+- **Data Repository** - Stores portfolio, goals, market data, and RAG context
+- **Coordination Mechanism** - Routes queries and tracks agent execution
+- **Error Handler** - Accumulates errors for debugging and user feedback
+
+#### Where is State Stored?
+
+**Storage Location:** In-memory Python dictionary  
+**Persistence:** Ephemeral (exists only during query processing)  
+**Lifetime:** Created at workflow start → Destroyed after response returned  
+**Scope:** Per-query (each query gets fresh state initialized with session context)
+
+**Important:** State is NOT persisted to database or disk. It's a temporary working memory for the current query execution. Session data (portfolio, goals) comes from Streamlit's session_state, which is separate from LangGraph state.
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    STATE LIFECYCLE                          │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  User Query                                                 │
+│      │                                                      │
+│      ▼                                                      │
+│  ┌────────────────────┐                                     │
+│  │ create_initial_    │  Creates new state dict with:       │
+│  │ state()            │  - current_query                    │
+│  └────────┬───────────┘  - session_id                       │
+│           │              - portfolio (from st.session_state)│
+│           │              - goals (from st.session_state)    │
+│           ▼                                                 │
+│  ┌────────────────────┐                                     │
+│  │  workflow.run()    │  Passes state through nodes:        │
+│  │                    │  route → agents → synthesize        │
+│  └────────┬───────────┘                                     │
+│           │              Each node reads & updates state    │
+│           ▼                                                 │
+│  ┌────────────────────┐                                     │
+│  │ State Update Cycle │  Nodes modify:                      │
+│  │                    │  - agent_outputs                    │
+│  │  Route → Agent →   │  - retrieved_context                │
+│  │  Synthesize        │  - sources                          │
+│  └────────┬───────────┘  - final_response                   │
+│           │                                                 │
+│           ▼                                                 │
+│  ┌────────────────────┐                                     │
+│  │ Return final_      │  Extract response from state        │
+│  │ response           │                                     │
+│  └────────┬───────────┘                                     │
+│           │                                                 │
+│           ▼                                                 │
+│  State Destroyed       (No persistence - ephemeral)         │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
 ### The AgentState Schema
 
-The **AgentState** is a TypedDict that serves as the shared memory across all agents in the workflow. It enables seamless collaboration by maintaining conversation context, routing information, agent outputs, and user data.
-
 ```python
+# src/core/state.py
+
 class AgentState(TypedDict):
     """
     Shared state for LangGraph workflow.
@@ -386,6 +448,241 @@ class AgentState(TypedDict):
 
     # ===== METADATA =====
     metadata: Dict[str, Any]          # Additional metadata (timestamps, counters, etc.)
+```
+
+### How is State Updated?
+
+State flows through the LangGraph workflow nodes, with each node reading and modifying specific fields:
+
+#### 1. State Creation
+
+```python
+# src/core/state.py
+
+def create_initial_state(
+    query: str,
+    session_id: str,
+    portfolio: Optional[Dict] = None,
+    goals: Optional[List] = None,
+    user_id: Optional[str] = None
+) -> AgentState:
+    """Factory function to create initial state for new query."""
+    return AgentState(
+        messages=[],
+        current_query=query,
+        query_type=None,
+        target_agents=[],
+        current_agent=None,
+        agent_outputs={},
+        final_response=None,
+        portfolio=portfolio,
+        market_data={},
+        goals=goals or [],
+        retrieved_context=[],
+        sources=[],
+        session_id=session_id,
+        user_id=user_id,
+        errors=[],
+        metadata={"timestamp": time.time()}
+    )
+```
+
+#### 2. State Updates in Workflow Nodes
+
+Each LangGraph node is a function that receives state and returns modified state:
+
+```python
+# src/workflow/graph.py
+
+def _route_node(state: AgentState) -> AgentState:
+    """Route node - classifies query and selects agents."""
+    query = state["current_query"]
+    portfolio = state.get("portfolio")
+    
+    # Classify query using router
+    query_type, target_agents = query_router.route(query, portfolio)
+    
+    # Update state with routing decisions
+    state["query_type"] = query_type
+    state["target_agents"] = target_agents
+    state["metadata"]["routing_time"] = time.time()
+    
+    return state  # Modified state flows to next node
+
+
+def _finance_qa_node(state: AgentState) -> AgentState:
+    """Finance Q&A agent node."""
+    # Read from state
+    query = state["current_query"]
+    
+    # Process with agent
+    agent_output = finance_qa_agent.process(state)
+    
+    # Write to state
+    state = update_state_with_agent_output(
+        state=state,
+        agent_name="finance_qa",
+        agent_output=agent_output
+    )
+    
+    return state  # Modified state flows to next node
+
+
+def _synthesize_node(state: AgentState) -> AgentState:
+    """Synthesis node - combines outputs from all agents."""
+    agent_outputs = state["agent_outputs"]
+    
+    # Combine outputs into final response
+    final_response = synthesize_agent_outputs(agent_outputs)
+    
+    # Update state with final response
+    state["final_response"] = final_response
+    
+    return state  # Final state returned to caller
+```
+
+#### 3. Helper Functions for State Updates
+
+```python
+# src/core/state.py
+
+def update_state_with_agent_output(
+    state: AgentState,
+    agent_name: str,
+    agent_output: Dict[str, Any]
+) -> AgentState:
+    """
+    Helper to update state with agent output.
+    Handles source deduplication and metadata tracking.
+    """
+    # Add agent output
+    state["agent_outputs"][agent_name] = agent_output
+    
+    # Add sources if present (with deduplication)
+    if "sources" in agent_output:
+        existing_sources = {s.get("url") for s in state["sources"] if isinstance(s, dict)}
+        for source in agent_output["sources"]:
+            if source.get("url") not in existing_sources:
+                state["sources"].append(source)
+    
+    # Add retrieved context if present
+    if "context" in agent_output:
+        state["retrieved_context"].extend(agent_output["context"])
+    
+    # Update metadata
+    state["metadata"][f"{agent_name}_executed"] = True
+    state["metadata"][f"{agent_name}_timestamp"] = time.time()
+    
+    return state
+```
+
+### State Flow Through Workflow
+
+**Complete example showing state evolution:**
+
+```python
+# Initial State (after create_initial_state)
+{
+    "messages": [],
+    "current_query": "What is a Roth IRA?",
+    "query_type": None,
+    "target_agents": [],
+    "agent_outputs": {},
+    "final_response": None,
+    "portfolio": None,
+    "retrieved_context": [],
+    "sources": [],
+    "session_id": "sess_12345",
+    "errors": [],
+    "metadata": {"timestamp": 1234567890.0}
+}
+
+# ↓ After route_node
+{
+    ...
+    "query_type": "education",
+    "target_agents": ["finance_qa"],
+    "metadata": {
+        "timestamp": 1234567890.0,
+        "routing_time": 1234567890.5
+    }
+}
+
+# ↓ After finance_qa_node
+{
+    ...
+    "agent_outputs": {
+        "finance_qa": {
+            "response": "A Roth IRA is a retirement account...",
+            "sources": [{"title": "IRS Roth IRA Guide", "url": "..."}],
+            "context": ["Document chunk 1...", "Document chunk 2..."]
+        }
+    },
+    "retrieved_context": ["Document chunk 1...", "Document chunk 2..."],
+    "sources": [{"title": "IRS Roth IRA Guide", "url": "..."}],
+    "metadata": {
+        "timestamp": 1234567890.0,
+        "routing_time": 1234567890.5,
+        "finance_qa_executed": True,
+        "finance_qa_timestamp": 1234567891.0
+    }
+}
+
+# ↓ After synthesize_node (FINAL STATE)
+{
+    ...
+    "final_response": "A Roth IRA is a retirement account where you contribute after-tax dollars...",
+    "metadata": {
+        "timestamp": 1234567890.0,
+        "routing_time": 1234567890.5,
+        "finance_qa_executed": True,
+        "finance_qa_timestamp": 1234567891.0,
+        "synthesis_complete": True
+    }
+}
+```
+
+### Key State Management Principles
+
+1. **Immutability Pattern** - Nodes return modified state, not mutate in-place
+2. **Single Source of Truth** - State is the authoritative source for all workflow data
+3. **Deduplication** - Helper functions prevent duplicate sources and context
+4. **Metadata Tracking** - Every state update logs timestamp and execution flags
+5. **Error Accumulation** - Errors stored in state, not raised immediately
+6. **Type Safety** - TypedDict provides IDE autocomplete and type checking
+
+### State vs Session State
+
+**Important Distinction:**
+
+| Feature | LangGraph State (AgentState) | Streamlit Session State |
+|---------|------------------------------|-------------------------|
+| **Scope** | Per-query (ephemeral) | Per-user session (persistent) |
+| **Lifetime** | Created → Used → Destroyed | Persists across queries |
+| **Purpose** | Workflow coordination | UI state management |
+| **Storage** | In-memory dict | Streamlit backend |
+| **Contents** | Query, routing, agent outputs | Portfolio, goals, chat history |
+| **Access** | Workflow nodes only | Entire Streamlit app |
+
+**Data Flow Between States:**
+
+```
+┌─────────────────────┐
+│ Streamlit Session   │  Portfolio, goals stored here
+│ State               │  (Persists across queries)
+└──────────┬──────────┘
+           │ Copy data for current query
+           ▼
+┌─────────────────────┐
+│ LangGraph State     │  Query-specific working memory
+│ (AgentState)        │  (Ephemeral - destroyed after response)
+└──────────┬──────────┘
+           │ Response returned
+           ▼
+┌─────────────────────┐
+│ Streamlit UI        │  Display response, update chat history
+│                     │  (Saved to session state for next query)
+└─────────────────────┘
 ```
 
 ### State Lifecycle Example
@@ -1115,7 +1412,7 @@ User Query
 │  Speed: ~1ms                                    │
 │  Method: 50+ finance keywords (budget, invest,  │
 │          401k, mortgage, stock, portfolio, etc.)│
-│  Result: PASS → Layer 2 | FAIL → Layer 4       │
+│  Result: PASS → Layer 2 | FAIL → Layer 4        │
 └─────────────────────────────────────────────────┘
     ↓ PASS
 ┌─────────────────────────────────────────────────┐
@@ -1124,7 +1421,7 @@ User Query
 │  Speed: ~1ms                                    │
 │  Method: Keyword blacklist (profanity, illegal  │
 │          activities, personal attacks, spam)    │
-│  Result: PASS → Layer 3 | FAIL → REJECT        │
+│  Result: PASS → Layer 3 | FAIL → REJECT         │
 └─────────────────────────────────────────────────┘
     ↓ PASS
 ┌─────────────────────────────────────────────────┐
@@ -1133,7 +1430,7 @@ User Query
 │  Speed: ~1ms                                    │
 │  Method: Check for off-topic keywords (weather, │
 │          sports, recipes, tech support, etc.)   │
-│  Result: PASS → APPROVED | FAIL → Layer 4      │
+│  Result: PASS → APPROVED | FAIL → Layer 4       │
 └─────────────────────────────────────────────────┘
     ↓ PASS
 ┌─────────────────────────────────────────────────┐
@@ -1149,7 +1446,7 @@ User Query
 │  Method: GPT-4o-mini classifies query relevance │
 │  Prompt: "Is this query related to personal     │
 │          finance, investing, budgeting, etc.?"  │
-│  Result: RELEVANT → APPROVED | OFF_TOPIC →     │
+│  Result: RELEVANT → APPROVED | OFF_TOPIC →      │
 │          REJECT with friendly refusal message   │
 └─────────────────────────────────────────────────┘
     ↓
