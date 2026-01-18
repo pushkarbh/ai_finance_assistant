@@ -924,6 +924,14 @@ def render_chat_tab():
             "What is dollar-cost averaging and why is it recommended?",
             "Can you explain compound interest with an example?",
             "What's the difference between a traditional and Roth IRA?",
+            "Help me plan for retirement with $500K in 20 years",
+            "I want to save $100K for a house down payment in 5 years",
+            "How much should I contribute monthly to reach $1M by age 65?",
+            "Should I max out my 401K or invest in a taxable account?",
+            "Analyze my portfolio: 60% stocks, 30% bonds, 10% cash",
+            "Is my portfolio too concentrated in tech stocks?",
+            "How can I reduce risk in my retirement portfolio?",
+            "What's a good asset allocation for someone in their 30s?",
         ]
         for example in examples:
             if st.button(example, key=f"ex_{example[:20]}"):
@@ -1098,11 +1106,17 @@ def render_portfolio_tab():
                 st.dataframe(pd.DataFrame(other_data), use_container_width=True, hide_index=True)
 
             if st.button("Analyze Current Portfolio"):
-                with smart_spinner():
-                    agent = PortfolioAnalysisAgent()
-                    analysis = agent.analyze_portfolio(st.session_state.portfolio)
-                    if 'error' not in analysis:
-                        display_portfolio_analysis(analysis)
+                try:
+                    with smart_spinner():
+                        agent = PortfolioAnalysisAgent()
+                        analysis = agent.analyze_portfolio(st.session_state.portfolio)
+                        if 'error' in analysis:
+                            st.error(f"Analysis error: {analysis['error']}")
+                        else:
+                            display_portfolio_analysis(analysis)
+                except Exception as e:
+                    st.error(f"Failed to analyze portfolio: {str(e)}")
+                    st.write("Debug - Portfolio data:", st.session_state.portfolio)
         else:
             st.info("No portfolio data yet. Upload a CSV or add holdings manually.")
 
