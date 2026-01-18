@@ -11,6 +11,7 @@ from langchain_core.messages import HumanMessage, AIMessage
 
 from src.core.state import AgentState, create_initial_state, add_error_to_state
 from src.core.llm import get_llm
+from src.core.guardrails import get_guardrails
 from src.workflow.router import QueryRouter
 from src.agents import (
     FinanceQAAgent,
@@ -30,6 +31,7 @@ class FinanceAssistantWorkflow:
     def __init__(self):
         """Initialize the workflow with all agents and router."""
         self.router = QueryRouter()
+        self.guardrails = get_guardrails()
 
         # Initialize agents
         self.agents = {
@@ -252,6 +254,22 @@ Create a unified response that:
         Returns:
             Dict with response and metadata
         """
+        # GUARDRAIL: Validate query before processing
+        is_valid, refusal_message, classification = self.guardrails.validate_query(query)
+        
+        if not is_valid:
+            # Return refusal message without processing
+            return {
+                "response": refusal_message,
+                "sources": [],
+                "agents_used": [],
+                "agent_outputs": {},
+                "query_type": "rejected",
+                "classification": classification,
+                "session_id": session_id or str(uuid.uuid4()),
+                "errors": []
+            }
+        
         # Create initial state
         session_id = session_id or str(uuid.uuid4())
         initial_state = create_initial_state(
@@ -268,12 +286,18 @@ Create a unified response that:
         final_state = self.app.invoke(initial_state)
 
         # Extract results
+        response = final_state.get("final_response", "")
+        
+        # GUARDRAIL: Validate response (add disclaimer if needed)
+        _, validated_response = self.guardrails.validate_response(response)
+        
         return {
-            "response": final_state.get("final_response", ""),
+            "response": validated_response,
             "sources": final_state.get("sources", []),
             "agents_used": list(final_state.get("agent_outputs", {}).keys()),
             "agent_outputs": final_state.get("agent_outputs", {}),
             "query_type": final_state.get("query_type"),
+            "classification": "RELEVANT",
             "session_id": session_id,
             "errors": final_state.get("errors", [])
         }
