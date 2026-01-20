@@ -1,0 +1,56 @@
+# .gitignore additions for Hugging Face deployment
+
+# Environment variables (never commit API keys!)
+.env
+.env.local
+.env.*.local
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+*.cover
+
+# Logs
+*.log
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Jupyter Notebooks (if any)
+.ipynb_checkpoints/
+
+# Keep data folders but ignore large cache files
+src/data/faiss_index/*.faiss
+!src/data/faiss_index/.gitkeep
