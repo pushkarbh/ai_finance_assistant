@@ -43,11 +43,6 @@ env/
 htmlcov/
 .tox/
 
-# FAISS index files (can be regenerated)
-*.faiss
-*.pkl
-src/data/faiss_index/
-
 # Jupyter
 .ipynb_checkpoints/
 
