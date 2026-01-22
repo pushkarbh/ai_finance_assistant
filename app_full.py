@@ -6,6 +6,7 @@ Provides a multi-tab interface for chat, portfolio analysis, market data, and go
 import sys
 from pathlib import Path
 from typing import Optional, List, Dict, Any
+import traceback
 
 # Add project root to path for imports
 project_root = Path(__file__).parent.parent.parent
@@ -29,18 +30,57 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Import our modules AFTER set_page_config to avoid triggering Streamlit commands
-from src.workflow import process_query
-from src.utils.market_data import (
-    get_market_summary,
-    get_stock_price,
-    get_stock_info,
-    get_historical_data,
-    calculate_returns,
-    get_stock_news
-)
-from src.agents import PortfolioAnalysisAgent
-from src.web_app.financial_tips import get_random_tip
+# Lazy import flag - imports happen on first use to speed up initial load
+_imports_loaded = False
+_import_error = None
+
+def lazy_import():
+    """Lazy load heavy imports after app starts to pass health checks faster."""
+    global _imports_loaded, _import_error, process_query, get_market_summary
+    global get_stock_price, get_stock_info, get_historical_data, calculate_returns
+    global get_stock_news, PortfolioAnalysisAgent, get_random_tip
+    
+    if _imports_loaded:
+        return True
+    
+    if _import_error:
+        st.error(f"❌ **Critical Import Error:**")
+        st.code(str(_import_error))
+        st.stop()
+        return False
+    
+    try:
+        from src.workflow import process_query
+        from src.utils.market_data import (
+            get_market_summary,
+            get_stock_price,
+            get_stock_info,
+            get_historical_data,
+            calculate_returns,
+            get_stock_news
+        )
+        from src.agents import PortfolioAnalysisAgent
+        from src.web_app.financial_tips import get_random_tip
+        
+        # Make them global so other functions can use them
+        globals()['process_query'] = process_query
+        globals()['get_market_summary'] = get_market_summary
+        globals()['get_stock_price'] = get_stock_price
+        globals()['get_stock_info'] = get_stock_info
+        globals()['get_historical_data'] = get_historical_data
+        globals()['calculate_returns'] = calculate_returns
+        globals()['get_stock_news'] = get_stock_news
+        globals()['PortfolioAnalysisAgent'] = PortfolioAnalysisAgent
+        globals()['get_random_tip'] = get_random_tip
+        
+        _imports_loaded = True
+        return True
+    except Exception as e:
+        _import_error = f"{str(e)}\n\n{traceback.format_exc()}"
+        st.error(f"❌ **Critical Import Error:**")
+        st.code(_import_error)
+        st.stop()
+        return False
 
 
 def init_session_state():
@@ -3070,4 +3110,6 @@ def load_sample_portfolio():
 
 
 if __name__ == "__main__":
+    # Lazy load imports on first actual use
+    lazy_import()
     main()
