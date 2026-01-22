@@ -1,6 +1,6 @@
 """
 Entry point for Streamlit Cloud deployment.
-Works both locally and on Streamlit Cloud.
+Executes the actual app from src/web_app/app.py
 """
 
 import sys
@@ -10,12 +10,9 @@ from pathlib import Path
 project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
-# Import everything from the actual app
-# This makes all Streamlit commands execute as if they're in this file
-from src.web_app.app import *
-
-# The app runs automatically when src.web_app.app is imported
-# because it contains Streamlit commands at the module level
+# Execute the actual app file directly
+app_file = project_root / "src" / "web_app" / "app.py"
+exec(open(app_file).read())
 
     try:
         # Import and run the initialization
