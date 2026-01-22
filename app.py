@@ -1,18 +1,11 @@
-"""
-Entry point for Streamlit Cloud deployment.
-Executes the actual app from src/web_app/app.py
-"""
-
 import sys
 from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent))
 
-# Add project root to path so imports work
-project_root = Path(__file__).parent
-sys.path.insert(0, str(project_root))
-
-# Execute the actual app file directly
-app_file = project_root / "src" / "web_app" / "app.py"
-exec(open(app_file).read())
+# Direct execution of the real app
+with open('src/web_app/app.py') as f:
+    code = compile(f.read(), 'src/web_app/app.py', 'exec')
+    exec(code, {'__name__': '__main__', '__file__': str(Path(__file__).parent / 'src/web_app/app.py')})
 
     try:
         # Import and run the initialization
