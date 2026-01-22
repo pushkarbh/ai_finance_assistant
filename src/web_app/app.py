@@ -30,17 +30,23 @@ st.set_page_config(
 )
 
 # Import our modules AFTER set_page_config to avoid triggering Streamlit commands
-from src.workflow import process_query
-from src.utils.market_data import (
-    get_market_summary,
-    get_stock_price,
-    get_stock_info,
-    get_historical_data,
-    calculate_returns,
-    get_stock_news
-)
-from src.agents import PortfolioAnalysisAgent
-from src.web_app.financial_tips import get_random_tip
+try:
+    from src.workflow import process_query
+    from src.utils.market_data import (
+        get_market_summary,
+        get_stock_price,
+        get_stock_info,
+        get_historical_data,
+        calculate_returns,
+        get_stock_news
+    )
+    from src.agents import PortfolioAnalysisAgent
+    from src.web_app.financial_tips import get_random_tip
+except Exception as e:
+    st.error(f"❌ **Critical Error Loading Application:**")
+    st.code(f"{type(e).__name__}: {str(e)}")
+    st.info("**Possible causes:**\n- Missing API keys in Streamlit secrets\n- Missing dependencies\n- FAISS index files not found")
+    st.stop()
 
 
 def init_session_state():
