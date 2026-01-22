@@ -264,16 +264,32 @@ Index saved to: src/data/faiss_index/
 
 ### Step 6: Run the Application
 
-You have two options to start the application:
+You have several options to start the application:
 
 **Option A: Using the run script (recommended)**
 ```bash
 python run.py
 ```
 
-**Option B: Direct Streamlit command**
+**Option B: Direct Streamlit command (simple)**
 ```bash
 streamlit run src/web_app/app.py
+```
+
+**Option C: Local testing with custom port (recommended for development)**
+```bash
+source venv/bin/activate && streamlit run src/web_app/app.py --server.port 8502 --server.address 0.0.0.0
+```
+Use this for local testing and development. Runs on port 8502 and accessible from other devices on your network.
+
+**Option D: HuggingFace Spaces compatible (for testing deployment locally)**
+```bash
+source venv/bin/activate && streamlit run src/web_app/app.py --server.port 7860 --server.address 0.0.0.0
+```
+
+**Option E: Streamlit Cloud compatible (root-level entry point)**
+```bash
+streamlit run app.py
 ```
 
 ### Step 7: Access the Application
@@ -283,11 +299,14 @@ Once the application starts, you should see:
 ```
 You can now view your Streamlit app in your browser.
 
-Local URL: http://localhost:8501
-Network URL: http://192.168.x.x:8501
+Local URL: http://localhost:8501  (or 8502 if you specified that port)
+Network URL: http://192.168.x.x:8501  (or 8502)
 ```
 
-Open your browser and navigate to `http://localhost:8501`
+**Default ports by run option:**
+- Options A, B, E: `http://localhost:8501`
+- Option C: `http://localhost:8502`
+- Option D: `http://localhost:7860`
 
 ### Verifying the Setup
 

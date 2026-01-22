@@ -1,23 +1,22 @@
-#!/usr/bin/env python3
 """
-Startup wrapper for Hugging Face Spaces deployment.
-Ensures FAISS index is built before starting the Streamlit app.
+Entry point for Streamlit Cloud deployment.
+Works both locally and on Streamlit Cloud.
 """
-import os
+
 import sys
 from pathlib import Path
 
-print("=" * 70)
-print("AI Finance Assistant - Hugging Face Startup")
-print("=" * 70)
+# Add project root to path so imports work
+project_root = Path(__file__).parent
+sys.path.insert(0, str(project_root))
 
-# Check if FAISS index exists
-faiss_index_path = Path("src/data/faiss_index/index.faiss")
+# Import everything from the actual app
+# This makes all Streamlit commands execute as if they're in this file
+from src.web_app.app import *
 
-if not faiss_index_path.exists():
-    print("\nFAISS index not found. Building from knowledge base...")
-    print("This will take about 30-60 seconds on first startup.\n")
-    
+# The app runs automatically when src.web_app.app is imported
+# because it contains Streamlit commands at the module level
+
     try:
         # Import and run the initialization
         from scripts.init_rag import main as init_rag_main
