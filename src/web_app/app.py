@@ -11,6 +11,14 @@ from typing import Optional, List, Dict, Any
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
+# Check if required files exist before importing anything else
+faiss_index_path = project_root / "src" / "data" / "faiss_index" / "index.faiss"
+if not faiss_index_path.exists():
+    print(f"ERROR: FAISS index not found at {faiss_index_path}")
+    print(f"Project root: {project_root}")
+    print(f"Directory contents: {list((project_root / 'src' / 'data').iterdir())}")
+    sys.exit(1)
+
 import streamlit as st
 import pandas as pd
 import plotly.express as px
