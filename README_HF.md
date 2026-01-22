@@ -3,11 +3,9 @@ title: AI Finance Assistant
 emoji: 💰
 colorFrom: green
 colorTo: blue
-sdk: streamlit
-sdk_version: "1.31.0"
-app_file: src/web_app/app.py
+sdk: docker
+app_port: 7860
 pinned: false
-license: mit
 ---
 
 # AI Finance Assistant
