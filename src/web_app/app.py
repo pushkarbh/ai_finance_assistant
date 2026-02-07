@@ -1258,7 +1258,7 @@ def render_portfolio_tab():
                     })
                 st.dataframe(pd.DataFrame(other_data), use_container_width=True, hide_index=True)
 
-            if st.button("Analyze Current Portfolio"):
+            if st.button("Analyze Current Portfolio", type="primary"):
                 try:
                     with smart_spinner():
                         agent = PortfolioAnalysisAgent()

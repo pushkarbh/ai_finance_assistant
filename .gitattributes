@@ -1,0 +1,13 @@
+# Git LFS for binary files
+# Hugging Face Spaces natively supports Git LFS
+
+# FAISS index files (binary)
+*.faiss filter=lfs diff=lfs merge=lfs -text
+*.pkl filter=lfs diff=lfs merge=lfs -text
+
+# Other common binary formats
+*.bin filter=lfs diff=lfs merge=lfs -text
+*.model filter=lfs diff=lfs merge=lfs -text
+*.pt filter=lfs diff=lfs merge=lfs -text
+*.pth filter=lfs diff=lfs merge=lfs -text
+*.onnx filter=lfs diff=lfs merge=lfs -text
