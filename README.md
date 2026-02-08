@@ -2,6 +2,14 @@
 
 A multi-agent conversational AI system for financial education, built with LangGraph workflow orchestration and RAG-based knowledge retrieval.
 
+## Demo & Resources
+
+| Resource | Link |
+|----------|------|
+| **Live Demo** | [AI Finance Assistant on Hugging Face](https://huggingface.co/spaces/pbhi0717/ai-finance-assistant) |
+| **Demo Recording** | [Watch on Google Drive](https://drive.google.com/file/d/1IAtRVp4kTq16Ggt6TsndHhGJc37pf6fe/view?usp=sharing) |
+| **Presentation Slides** | [Presentation Slides - AI Finance Assistant.pdf](Presentation%20Slides%20-%20AI%20Finance%20Assistant.pdf) |
+
 ## 🚀 Quick Start
 
 **With Docker (Recommended):**
